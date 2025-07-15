@@ -1,0 +1,380 @@
+openapi: 3.0.3
+info:
+  title: TypoSync Rhythm Analysis API
+  description: |
+    Audio analysis API for extracting rhythm and melody information from audio files.
+
+    This API provides endpoints for uploading audio files and receiving detailed analysis
+    results including BPM, beat timestamps, and melody extraction with real-time progress tracking.
+  version: 0.1.0-dev
+  contact:
+    name: TypoSync Development Team
+  license:
+    name: MIT
+
+servers:
+  - url: http://localhost:8000
+    description: Development server
+  - url: https://typo-sync.lst97.dev
+    description: Production server
+
+paths:
+  /:
+    get:
+      summary: Health check endpoint
+      description: Returns the current status of the rhythm analysis engine.
+      operationId: healthCheck
+      responses:
+        "200":
+          description: Service is running normally
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "Rhythm Analysis Engine is running"
+                  backend:
+                    type: string
+                    enum: [redis, in-memory]
+                    example: "in-memory"
+                  python_check:
+                    type: object
+                    properties:
+                      healthy:
+                        type: boolean
+                      error:
+                        type: string
+        "503":
+          description: Service unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HTTPError"
+
+  /analyze:
+    post:
+      summary: Submit an audio file for analysis
+      description: |
+        Upload an audio file (MP3 or WAV) to start the rhythm and melody analysis.
+        This endpoint initiates a background task and returns a task ID to track the progress.
+      operationId: analyzeAudio
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: The audio file to be analyzed (MP3 or WAV)
+              required:
+                - file
+      responses:
+        "200":
+          description: Analysis task created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnalyzeResponse"
+        "400":
+          description: Invalid request (unsupported file type, file too large, etc.)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HTTPError"
+
+  /results/{taskId}:
+    get:
+      summary: Fetch the result of an analysis task
+      description: Retrieve the current status or final result of a completed analysis task using its task ID.
+      operationId: getResults
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          description: The unique task identifier returned by the analyze endpoint
+          schema:
+            type: string
+            example: "01HF7XQZX8R3VTFN95QG9MJZT0"
+      responses:
+        "200":
+          description: Task status or result retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaskResultResponse"
+              examples:
+                success:
+                  summary: Successful Analysis
+                  value:
+                    state: "SUCCESS"
+                    result:
+                      bpm: 120.0
+                      beat_timestamps: [0.0, 0.5, 1.0]
+                      melody_map:
+                        - pitch: "C4"
+                          start_time: 0.5
+                          duration: 0.45
+                      analysis_info:
+                        total_beats: 150
+                        total_subdivisions: 300
+                        consolidated_notes: 100
+                        filtered_notes: 80
+                        min_note_duration: 0.05
+                        subdivision_factor: 2
+                processing:
+                  summary: Task in Progress
+                  value:
+                    state: "PROCESSING"
+                    status: "Processing audio file..."
+                failure:
+                  summary: Failed Task
+                  value:
+                    state: "FAILURE"
+                    status: "Analysis failed."
+        "404":
+          description: Task not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HTTPError"
+
+  /stream/{taskId}:
+    get:
+      summary: Stream real-time analysis results via SSE
+      description: |
+        Connect to this endpoint using an EventSource client to receive real-time updates on the analysis task.
+        The stream will send JSON objects with the task's current state.
+
+        **Event Format:**
+
+        - **state**: The current state of the task (`PENDING`, `PROCESSING`, `SUCCESS`, `FAILURE`, `NOT_FOUND`).
+        - **status**: A descriptive message (for `PENDING`, `PROCESSING`, `FAILURE` states).
+        - **result**: The full analysis result object (only for the `SUCCESS` state).
+
+        The stream closes after a `SUCCESS`, `FAILURE`, or `NOT_FOUND` event is sent.
+      operationId: streamResults
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          description: The unique task identifier returned by the analyze endpoint
+          schema:
+            type: string
+            example: "01HF7XQZX8R3VTFN95QG9MJZT0"
+      responses:
+        "200":
+          description: A stream of Server-Sent Events with task status updates
+          content:
+            text/event-stream:
+              schema:
+                type: string
+                example: 'data: {"state": "PROCESSING", "status": "Processing audio file..."}\n\n'
+        "400":
+          description: Invalid task ID
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HTTPError"
+
+components:
+  schemas:
+    MelodyNote:
+      type: object
+      description: A single note in the extracted melody
+      properties:
+        pitch:
+          type: string
+          description: The MIDI note name (e.g., C4, F#5)
+          example: "A4"
+        start_time:
+          type: number
+          format: float
+          description: Start time of the note in seconds
+          example: 1.23
+        duration:
+          type: number
+          format: float
+          description: Duration of the note in seconds
+          example: 0.45
+      required:
+        - pitch
+        - start_time
+        - duration
+
+    AnalysisInfo:
+      type: object
+      description: Detailed information about the analysis process
+      properties:
+        total_beats:
+          type: integer
+          description: Total number of beats detected
+          example: 150
+        total_subdivisions:
+          type: integer
+          description: Total number of subdivisions analyzed
+          example: 300
+        consolidated_notes:
+          type: integer
+          description: Number of notes after consolidating consecutive identical notes
+          example: 100
+        filtered_notes:
+          type: integer
+          description: Number of notes after applying the minimum duration filter
+          example: 80
+        min_note_duration:
+          type: number
+          format: float
+          description: The minimum note duration filter used
+          example: 0.05
+        subdivision_factor:
+          type: integer
+          description: The number of subdivisions per beat
+          example: 2
+      required:
+        - total_beats
+        - total_subdivisions
+        - consolidated_notes
+        - filtered_notes
+        - min_note_duration
+        - subdivision_factor
+
+    AnalysisResult:
+      type: object
+      description: Complete analysis result containing tempo, beats, and melody
+      properties:
+        bpm:
+          type: number
+          format: float
+          description: Estimated tempo in beats per minute
+          example: 120.0
+        beat_timestamps:
+          type: array
+          items:
+            type: number
+            format: float
+          description: List of timestamps for each detected beat
+          example: [0.0, 0.5, 1.0, 1.5]
+        melody_map:
+          type: array
+          items:
+            $ref: "#/components/schemas/MelodyNote"
+          description: The extracted melody as a list of notes
+        analysis_info:
+          $ref: "#/components/schemas/AnalysisInfo"
+      required:
+        - bpm
+        - beat_timestamps
+        - melody_map
+        - analysis_info
+
+    AnalyzeResponse:
+      type: object
+      description: Response returned when an analysis task is created
+      properties:
+        task_id:
+          type: string
+          description: A unique ID for the analysis task
+          example: "01HF7XQZX8R3VTFN95QG9MJZT0"
+        backend:
+          type: string
+          enum: [redis, in-memory]
+          description: The backend used for processing
+          example: "in-memory"
+      required:
+        - task_id
+        - backend
+
+    SuccessResponse:
+      type: object
+      description: Task completed successfully
+      properties:
+        state:
+          type: string
+          enum: [SUCCESS]
+          example: "SUCCESS"
+        result:
+          $ref: "#/components/schemas/AnalysisResult"
+      required:
+        - state
+        - result
+
+    StatusResponse:
+      type: object
+      description: Task is still being processed
+      properties:
+        state:
+          type: string
+          enum: [PENDING, PROCESSING]
+          example: "PROCESSING"
+        status:
+          type: string
+          description: A message describing the current status
+          example: "Processing audio file..."
+      required:
+        - state
+        - status
+
+    FailureResponse:
+      type: object
+      description: Task failed during execution
+      properties:
+        state:
+          type: string
+          enum: [FAILURE]
+          example: "FAILURE"
+        status:
+          type: string
+          description: A message describing the error
+          example: "Audio analysis failed due to an invalid file format."
+      required:
+        - state
+        - status
+
+    NotFoundResponse:
+      type: object
+      description: The requested task ID was not found
+      properties:
+        state:
+          type: string
+          enum: [NOT_FOUND]
+          example: "NOT_FOUND"
+        status:
+          type: string
+          description: A message indicating the task ID is not valid
+          example: "Task not found"
+      required:
+        - state
+        - status
+
+    TaskResultResponse:
+      oneOf:
+        - $ref: "#/components/schemas/SuccessResponse"
+        - $ref: "#/components/schemas/StatusResponse"
+        - $ref: "#/components/schemas/FailureResponse"
+        - $ref: "#/components/schemas/NotFoundResponse"
+      discriminator:
+        propertyName: state
+
+    HTTPError:
+      type: object
+      description: Standard HTTP error response
+      properties:
+        detail:
+          type: string
+          description: Error description
+          example: "Resource not found"
+      required:
+        - detail
+
+  securitySchemes: {}
+
+tags:
+  - name: Analysis
+    description: Audio analysis operations
+  - name: Health
+    description: Service health checks

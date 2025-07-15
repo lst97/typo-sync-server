@@ -1,0 +1,15 @@
+# Development override for docker-compose.yml
+services:
+  api:
+    environment:
+      - LOG_LEVEL=DEBUG
+      - REDIS_URL=  # Use in-memory for development
+    volumes:
+      - ./api:/app  # Enable hot reload for development
+    command: ["deno", "run", "--allow-all", "--watch", "main.ts"]
+    depends_on:
+      - rhythm_engine  # Remove Redis dependency for dev mode
+    
+  rhythm_engine:
+    volumes:
+      - ./rhythm_engine:/app  # Allow modifications during development

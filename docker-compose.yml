@@ -1,0 +1,87 @@
+services:
+  # Deno API Server
+  api:
+    build: 
+      context: ./api
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - PORT=8000
+      - LOG_LEVEL=INFO
+      - REDIS_URL=redis://redis:6379/0
+      - PYTHON_EXECUTABLE=python3
+      - RHYTHM_ENGINE_PATH=/rhythm_engine/run.py
+      - UPLOAD_DIR=/app/uploads
+      - MAX_FILE_SIZE=52428800  # 50MB
+    volumes:
+      - ./api:/app
+      - ./rhythm_engine:/rhythm_engine:ro  # Mount Python engine as read-only
+      - api_uploads:/app/uploads
+    depends_on:
+      - redis
+      - rhythm_engine
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "deno", "run", "--allow-net", "healthcheck.ts"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Python Rhythm Engine
+  rhythm_engine:
+    build:
+      context: ./rhythm_engine
+      dockerfile: Dockerfile
+    volumes:
+      - ./rhythm_engine:/app:ro  # Read-only mount
+    # This service is used as a worker, not a standalone service
+    # The API will call it via IPC
+    command: ["tail", "-f", "/dev/null"]  # Keep container running
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "run.py", "--version"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Redis for task management
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    command: redis-server --appendonly yes
+
+  # Nginx reverse proxy (optional)
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - api
+    restart: unless-stopped
+    profiles:
+      - production  # Only start with --profile production
+
+volumes:
+  redis_data:
+    driver: local
+  api_uploads:
+    driver: local
+
+networks:
+  default:
+    name: typosync_network

@@ -1,0 +1,42 @@
+# Development-only compose file (no Redis dependency)
+services:
+  # Deno API Server (in-memory mode)
+  api:
+    build: 
+      context: ./api
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - PORT=8000
+      - LOG_LEVEL=DEBUG
+      - PYTHON_EXECUTABLE=python3
+      - RHYTHM_ENGINE_PATH=/rhythm_engine/run.py
+      - UPLOAD_DIR=/app/uploads
+      - MAX_FILE_SIZE=52428800  # 50MB
+    volumes:
+      - ./api:/app
+      - ./rhythm_engine:/rhythm_engine:ro  # Mount Python engine as read-only
+      - api_uploads:/app/uploads
+    depends_on:
+      - rhythm_engine
+    restart: unless-stopped
+    command: ["deno", "run", "--allow-all", "--watch", "main.ts"]
+
+  # Python Rhythm Engine
+  rhythm_engine:
+    build:
+      context: ./rhythm_engine
+      dockerfile: Dockerfile
+    volumes:
+      - ./rhythm_engine:/app  # Allow modifications during development
+    command: ["tail", "-f", "/dev/null"]  # Keep container running
+    restart: unless-stopped
+
+volumes:
+  api_uploads:
+    driver: local
+
+networks:
+  default:
+    name: typosync_dev_network
