@@ -3,6 +3,7 @@ export { Application, Context, Router, Status } from "oak";
 export { oakCors } from "cors";
 export { z } from "zod";
 export { connect as connectRedis, type Redis } from "redis";
+export { PGlite } from "pglite";
 
 // Standard library
 export { exists, ensureDir } from "@std/fs";

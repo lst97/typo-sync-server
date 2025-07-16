@@ -4,7 +4,11 @@ import { config } from "./config/config.ts";
 import { errorHandler } from "./middleware/error-handler.ts";
 import { requestLogger } from "./middleware/request-logger.ts";
 import { analysisRouter, analysisService } from "./routes/analysis.ts";
+import { queueRouter, queueService } from "./routes/queue.ts";
+import { cacheRouter, cacheService } from "./routes/cache.ts";
+import { enhancedAnalysisRouter, enhancedAnalysisService } from "./routes/enhanced-analysis.ts";
 import { DocsHandler } from "./docs/docs-handler.ts";
+import { shutdownManager } from "./services/shutdown-manager.ts";
 
 async function createApp(): Promise<Application> {
   const app = new Application();
@@ -16,10 +20,7 @@ async function createApp(): Promise<Application> {
     
     // Handle stream controller errors specifically
     if (error instanceof Error && error.message.includes("stream controller")) {
-      logger.warn("Stream controller error caught at application level", { 
-        message: error.message,
-        stack: error.stack 
-      });
+      logger.warn("Stream controller error caught at application level", error);
       return; // Don't crash on stream errors
     }
     
@@ -87,12 +88,31 @@ async function createApp(): Promise<Application> {
   // API routes
   app.use(analysisRouter.routes());
   app.use(analysisRouter.allowedMethods());
+  
+  app.use(queueRouter.routes());
+  app.use(queueRouter.allowedMethods());
+  
+  app.use(cacheRouter.routes());
+  app.use(cacheRouter.allowedMethods());
+  
+  app.use(enhancedAnalysisRouter.routes());
+  app.use(enhancedAnalysisRouter.allowedMethods());
 
   return app;
 }
 
 async function startServer() {
   try {
+    // Setup graceful shutdown handlers
+    shutdownManager.setupSignalHandlers();
+
+    // Register application-specific shutdown handlers
+    shutdownManager.registerShutdownHandler(async () => {
+      logger.info("Closing application connections...");
+      // Add any application-specific cleanup here
+      // For example, close active HTTP connections, stop background tasks, etc.
+    });
+
     const app = await createApp();
     const port = config.config.port;
 
@@ -116,29 +136,11 @@ async function startServer() {
 }
 
 // Handle uncaught exceptions, especially stream controller errors
-globalThis.addEventListener("unhandledrejection", (event) => {
-  const error = event.reason;
-  
-  if (error instanceof Error && error.message.includes("stream controller")) {
-    logger.warn("Unhandled stream controller error", { 
-      message: error.message,
-      stack: error.stack 
-    });
-    event.preventDefault(); // Prevent crash
-    return;
-  }
-  
-  logger.error("Unhandled rejection", error instanceof Error ? error : new Error(String(error)));
-});
-
 globalThis.addEventListener("error", (event) => {
   const error = event.error;
   
   if (error instanceof Error && error.message.includes("stream controller")) {
-    logger.warn("Uncaught stream controller error", { 
-      message: error.message,
-      stack: error.stack 
-    });
+    logger.warn("Uncaught stream controller error", error);
     event.preventDefault(); // Prevent crash
     return;
   }
@@ -146,16 +148,7 @@ globalThis.addEventListener("error", (event) => {
   logger.error("Uncaught error", error instanceof Error ? error : new Error(String(error)));
 });
 
-// Handle shutdown gracefully
-Deno.addSignalListener("SIGINT", () => {
-  logger.info("Received SIGINT, shutting down gracefully...");
-  Deno.exit(0);
-});
-
-Deno.addSignalListener("SIGTERM", () => {
-  logger.info("Received SIGTERM, shutting down gracefully...");
-  Deno.exit(0);
-});
+// Note: unhandledrejection is now handled by the shutdown manager
 
 // Start the server
 if (import.meta.main) {
