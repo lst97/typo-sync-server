@@ -25,7 +25,9 @@ Deno.test("InMemoryTaskManager - set and get task status", async () => {
   const retrievedStatus = await taskManager.getTaskStatus(taskId);
   
   assertEquals(retrievedStatus?.state, "PROCESSING");
-  assertEquals(retrievedStatus?.status, "Processing audio file...");
+  if (retrievedStatus?.state === "PROCESSING") {
+    assertEquals(retrievedStatus.status, "Processing audio file...");
+  }
 });
 
 Deno.test("InMemoryTaskManager - get non-existent task", async () => {
@@ -94,9 +96,13 @@ Deno.test("InMemoryTaskManager - multiple tasks", async () => {
   const retrieved2 = await taskManager.getTaskStatus(taskId2);
   
   assertEquals(retrieved1?.state, "PROCESSING");
-  assertEquals(retrieved1?.status, "Processing first file...");
+  if (retrieved1?.state === "PROCESSING") {
+    assertEquals(retrieved1.status, "Processing first file...");
+  }
   assertEquals(retrieved2?.state, "PENDING");
-  assertEquals(retrieved2?.status, "Waiting to process second file...");
+  if (retrieved2?.state === "PENDING") {
+    assertEquals(retrieved2.status, "Waiting to process second file...");
+  }
 });
 
 Deno.test("InMemoryTaskManager - update existing task", async () => {
@@ -143,5 +149,7 @@ Deno.test("InMemoryTaskManager - update existing task", async () => {
   
   const finalStatus = await taskManager.getTaskStatus(taskId);
   assertEquals(finalStatus?.state, "SUCCESS");
-  assertEquals((finalStatus as any)?.result?.bpm, 128.5);
+  if (finalStatus?.state === "SUCCESS") {
+    assertEquals(finalStatus.result.bpm, 128.5);
+  }
 });

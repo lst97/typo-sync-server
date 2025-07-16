@@ -169,19 +169,6 @@ export class PythonIPCService {
 					error instanceof Error ? error.message : String(error)
 				}`,
 			};
-		} finally {
-			try {
-				await Deno.remove(filePath);
-				logger.info("Deleted audio file after analysis", { filePath });
-			} catch (deleteError) {
-				logger.warn(
-					"Failed to delete audio file after analysis",
-					deleteError instanceof Error
-						? deleteError
-						: new Error(String(deleteError)),
-					{ filePath }
-				);
-			}
 		}
 	}
 

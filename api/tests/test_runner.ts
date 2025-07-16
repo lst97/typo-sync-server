@@ -27,11 +27,17 @@ interface TestSuite {
 
 class TestRunner {
   private testFiles: string[] = [
-    "./test_schemas.ts",
-    "./test_task_manager.ts", 
-    "./test_python_ipc.ts",
-    "./test_analysis_service.ts",
-    "./integration_test.ts",
+    "api/tests/test_schemas.ts",
+    "api/tests/test_task_manager.ts", 
+    "api/tests/test_python_ipc.ts",
+    "api/tests/test_analysis_service.ts",
+    "api/tests/test_audio_hash_service.ts",
+    "api/tests/test_cache_service.ts",
+    "api/tests/test_database_service.ts",
+    "api/tests/test_database_manager.ts",
+    "api/tests/test_queue_service.ts",
+    "api/tests/test_shutdown_manager.ts",
+    "api/tests/integration_test.ts",
   ];
 
   private results: TestSuite[] = [];
@@ -60,7 +66,7 @@ class TestRunner {
           "--allow-write",
           "--allow-run",
           "--allow-env",
-          "--reporter=json",
+          "--reporter=tap",
           testFile
         ],
         stdout: "piped",
@@ -99,8 +105,9 @@ class TestRunner {
         this.addSimpleResult(testFile, false, duration, errorOutput);
       }
     } catch (error) {
-      console.log(`💥 ${testFile} - Could not run tests: ${error.message}`);
-      this.addSimpleResult(testFile, false, 0, error.message);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.log(`💥 ${testFile} - Could not run tests: ${errorMessage}`);
+      this.addSimpleResult(testFile, false, 0, errorMessage);
     }
     
     console.log("");
@@ -214,7 +221,17 @@ async function runWithCoverage(): Promise<void> {
       "--allow-run",
       "--allow-env",
       "--coverage=coverage",
-      ...TestRunner.prototype.testFiles,
+      "api/tests/test_schemas.ts",
+      "api/tests/test_task_manager.ts", 
+      "api/tests/test_python_ipc.ts",
+      "api/tests/test_analysis_service.ts",
+      "api/tests/test_audio_hash_service.ts",
+      "api/tests/test_cache_service.ts",
+      "api/tests/test_database_service.ts",
+      "api/tests/test_database_manager.ts",
+      "api/tests/test_queue_service.ts",
+      "api/tests/test_shutdown_manager.ts",
+      "api/tests/integration_test.ts",
     ],
   });
 

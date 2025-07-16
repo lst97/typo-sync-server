@@ -1,5 +1,6 @@
 import { logger } from "../utils/logger.ts";
 import { SUPPORTED_AUDIO_TYPES } from "../types/schemas.ts";
+import type { SupportedAudioType } from "../types/schemas.ts";
 
 export interface AudioMetadata {
 	fileSize: number;
@@ -14,7 +15,6 @@ export interface AudioHashes {
 }
 
 export class AudioHashService {
-	private readonly PERCEPTUAL_HASH_LENGTH = 32; // Length of perceptual hash
 	private readonly SIMILARITY_THRESHOLD = 0.8; // Threshold for similarity matching
 
 	/**
@@ -47,7 +47,7 @@ export class AudioHashService {
 	 * Generate perceptual hash for near-duplicate detection
 	 * This is a simplified implementation - in production, you'd use more sophisticated audio fingerprinting
 	 */
-	async generatePerceptualHash(audioBuffer: Uint8Array): Promise<string> {
+	generatePerceptualHash(audioBuffer: Uint8Array): string {
 		try {
 			// For this implementation, we'll create a simplified perceptual hash
 			// In a real system, you'd use spectral analysis, chromaprint, or similar
@@ -134,10 +134,8 @@ export class AudioHashService {
 		metadata: AudioMetadata
 	): Promise<AudioHashes> {
 		try {
-			const [contentHash, perceptualHash] = await Promise.all([
-				this.generateContentHash(audioBuffer),
-				this.generatePerceptualHash(audioBuffer),
-			]);
+			const contentHash = await this.generateContentHash(audioBuffer);
+			const perceptualHash = this.generatePerceptualHash(audioBuffer);
 
 			const metadataHash = this.generateMetadataHash(metadata);
 
@@ -212,7 +210,7 @@ export class AudioHashService {
 		const normalizedFormat = format.toLowerCase();
 
 		return (
-			SUPPORTED_AUDIO_TYPES.includes(normalizedFormat as any) ||
+			SUPPORTED_AUDIO_TYPES.includes(normalizedFormat as SupportedAudioType) ||
 			normalizedFormat === "mp3" ||
 			normalizedFormat === "wav"
 		);

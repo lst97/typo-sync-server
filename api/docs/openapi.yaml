@@ -13,8 +13,8 @@ info:
     - **Audio Fingerprinting**: Duplicate detection using content and perceptual hashing
 
     ## API Versions
-    - **v1**: Legacy endpoints (backward compatible)
-    - **v2**: Enhanced endpoints with caching and queue management
+    - **v1**: ⚠️ DEPRECATED - Legacy endpoints (returns 410 Gone, no longer functional)
+    - **v2**: Current API with enhanced features including caching and queue management
 
     This API provides endpoints for uploading audio files and receiving detailed analysis
     results including BPM, beat timestamps, and melody extraction with comprehensive
@@ -38,9 +38,9 @@ security: []
 tags:
   - name: Health
     description: Service health checks and system status
-  - name: Analysis (v1)
-    description: Legacy audio analysis operations
-  - name: Enhanced Analysis (v2)
+  - name: (Deprecated) - Analysis (v1)
+    description: "⚠️ DEPRECATED: Legacy audio analysis operations (no longer functional - returns 410 Gone)"
+  - name: Analysis (v2)
     description: Enhanced audio analysis with caching and queue management
   - name: Queue Management
     description: Queue status monitoring and task tracking
@@ -80,18 +80,25 @@ paths:
               schema:
                 $ref: "#/components/schemas/HTTPError"
 
-  # Legacy Analysis Endpoints (v1)
+  # Legacy Analysis Endpoints (v1) - DEPRECATED
   /analyze:
     post:
       tags:
-        - Analysis (v1)
-      summary: Submit an audio file for analysis (Legacy)
+        - (Deprecated) - Analysis (v1)
+      summary: Submit an audio file for analysis (DEPRECATED)
       description: |
-        **Legacy endpoint** - Use `/v2/analyze` for enhanced features.
+        **⚠️ DEPRECATED ENDPOINT - NO LONGER FUNCTIONAL**
 
-        Upload an audio file (MP3 or WAV) to start the rhythm and melody analysis.
-        This endpoint initiates a background task and returns a task ID to track the progress.
+        This endpoint has been permanently deprecated and will return a 410 Gone status.
+        Please migrate to `/v2/analyze` for enhanced features including:
+        - Intelligent caching with 99%+ hit rate
+        - Priority queue management
+        - Real-time progress tracking
+        - Improved performance and reliability
+
+        Migration guide: https://docs.typosync.com/api-migration-v2
       operationId: analyzeAudio
+      deprecated: true
       requestBody:
         required: true
         content:
@@ -106,29 +113,48 @@ paths:
               required:
                 - file
       responses:
-        "200":
-          description: Analysis task created successfully
+        "410":
+          description: Endpoint deprecated and no longer functional
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/AnalyzeResponse"
-        "400":
-          description: Invalid request (unsupported file type, file too large, etc.)
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/HTTPError"
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "API endpoint deprecated"
+                  message:
+                    type: string
+                    example: "The v1 /analyze endpoint has been deprecated. Please use /v2/analyze instead for enhanced features including intelligent caching, priority queue management, and improved performance."
+                  deprecated_endpoint:
+                    type: string
+                    example: "/analyze"
+                  recommended_endpoint:
+                    type: string
+                    example: "/v2/analyze"
+                required:
+                  - error
+                  - message
+                  - deprecated_endpoint
+                  - recommended_endpoint
 
   /results/{taskId}:
     get:
       tags:
-        - Analysis (v1)
-      summary: Fetch the result of an analysis task (Legacy)
+        - (Deprecated) - Analysis (v1)
+      summary: Fetch the result of an analysis task (DEPRECATED)
       description: |
-        **Legacy endpoint** - Use `/v2/results/{taskId}` for enhanced features.
+        **⚠️ DEPRECATED ENDPOINT - NO LONGER FUNCTIONAL**
 
-        Retrieve the current status or final result of a completed analysis task using its task ID.
+        This endpoint has been permanently deprecated and will return a 410 Gone status.
+        Please migrate to `/v2/results/{taskId}` for enhanced features including:
+        - Processing metrics and detailed timing information
+        - Enhanced error categorization and recovery suggestions
+        - Real-time status updates with queue position tracking
+
+        Migration guide: https://docs.typosync.com/api-migration-v2
       operationId: getResults
+      deprecated: true
       parameters:
         - name: taskId
           in: path
@@ -138,30 +164,48 @@ paths:
             type: string
             example: "01HF7XQZX8R3VTFN95QG9MJZT0"
       responses:
-        "200":
-          description: Task status or result retrieved successfully
+        "410":
+          description: Endpoint deprecated and no longer functional
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/TaskResultResponse"
-        "404":
-          description: Task not found
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/HTTPError"
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "API endpoint deprecated"
+                  message:
+                    type: string
+                    example: "The v1 /results endpoint has been deprecated. Please use /v2/results/:taskId instead for enhanced features including processing metrics and detailed error information."
+                  deprecated_endpoint:
+                    type: string
+                    example: "/results/:taskId"
+                  recommended_endpoint:
+                    type: string
+                    example: "/v2/results/:taskId"
+                required:
+                  - error
+                  - message
+                  - deprecated_endpoint
+                  - recommended_endpoint
 
   /stream/{taskId}:
     get:
       tags:
-        - Analysis (v1)
-      summary: Stream real-time analysis results via SSE (Legacy)
+        - (Deprecated) - Analysis (v1)
+      summary: Stream real-time analysis results via SSE (DEPRECATED)
       description: |
-        **Legacy endpoint** - Use `/v2/stream/{taskId}` for enhanced features.
+        **⚠️ DEPRECATED ENDPOINT - NO LONGER FUNCTIONAL**
 
-        Connect to this endpoint using an EventSource client to receive real-time updates on the analysis task.
-        The stream will send JSON objects with the task's current state.
+        This endpoint has been permanently deprecated and will return a 410 Gone status.
+        Please migrate to `/v2/stream/{taskId}` for enhanced features including:
+        - Queue position updates and processing time estimates
+        - Cache hit notifications and detailed processing information
+        - Enhanced error states and recovery options
+
+        Migration guide: https://docs.typosync.com/api-migration-v2
       operationId: streamResults
+      deprecated: true
       parameters:
         - name: taskId
           in: path
@@ -171,25 +215,36 @@ paths:
             type: string
             example: "01HF7XQZX8R3VTFN95QG9MJZT0"
       responses:
-        "200":
-          description: A stream of Server-Sent Events with task status updates
-          content:
-            text/event-stream:
-              schema:
-                type: string
-                example: 'data: {"state": "PROCESSING", "status": "Processing audio file..."}\n\n'
-        "400":
-          description: Invalid task ID
+        "410":
+          description: Endpoint deprecated and no longer functional
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/HTTPError"
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "API endpoint deprecated"
+                  message:
+                    type: string
+                    example: "The v1 /stream endpoint has been deprecated. Please use /v2/stream/:taskId instead for enhanced features including queue position updates and detailed processing information."
+                  deprecated_endpoint:
+                    type: string
+                    example: "/stream/:taskId"
+                  recommended_endpoint:
+                    type: string
+                    example: "/v2/stream/:taskId"
+                required:
+                  - error
+                  - message
+                  - deprecated_endpoint
+                  - recommended_endpoint
 
-  # Enhanced Analysis Endpoints (v2)
+  # Analysis Endpoints (v2)
   /v2/analyze:
     post:
       tags:
-        - Enhanced Analysis (v2)
+        - Analysis (v2)
       summary: Submit audio for enhanced analysis with caching and queue management
       description: |
         **Enhanced endpoint** with intelligent caching and priority queue management.
@@ -298,7 +353,7 @@ paths:
   /v2/results/{taskId}:
     get:
       tags:
-        - Enhanced Analysis (v2)
+        - Analysis (v2)
       summary: Get enhanced analysis results for processing tasks
       description: |
         Retrieve the current status or final result of an analysis task with enhanced metadata.
@@ -376,7 +431,7 @@ paths:
   /v2/stream/{taskId}:
     get:
       tags:
-        - Enhanced Analysis (v2)
+        - Analysis (v2)
       summary: Stream enhanced real-time analysis updates via SSE
       description: |
         Connect to this endpoint using an EventSource client to receive real-time updates
@@ -431,7 +486,7 @@ paths:
   /v2/health:
     get:
       tags:
-        - Enhanced Analysis (v2)
+        - Analysis (v2)
       summary: Comprehensive system health check
       description: |
         Get detailed health information about all system components including

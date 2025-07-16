@@ -17,31 +17,35 @@ const REDOC_HTML = `<!DOCTYPE html>
   </head>
   <body>
     <redoc spec-url="/docs/openapi.yaml"></redoc>
-    <script src="https://cdn.jsdelivr.net/npm/redoc@2.1.2/bundles/redoc.standalone.js"> </script>
+    <script src="https://cdn.jsdelivr.net/npm/redoc@2.5.0/bundles/redoc.standalone.js"> </script>
   </body>
 </html>`;
 
 export class DocsHandler {
-  async serveDocs(ctx: Context) {
-    logger.debug("Serving API documentation");
-    
-    ctx.response.headers.set("Content-Type", "text/html");
-    ctx.response.body = REDOC_HTML;
-  }
+	// deno-lint-ignore require-await
+	async serveDocs(ctx: Context) {
+		logger.debug("Serving API documentation");
 
-  async serveOpenApiSpec(ctx: Context) {
-    logger.debug("Serving OpenAPI specification");
-    
-    try {
-      const specPath = new URL("./openapi.yaml", import.meta.url).pathname;
-      const spec = await Deno.readTextFile(specPath);
-      
-      ctx.response.headers.set("Content-Type", "application/yaml");
-      ctx.response.body = spec;
-    } catch (error) {
-      logger.error("Failed to load OpenAPI spec", error instanceof Error ? error : new Error(String(error)));
-      ctx.response.status = 500;
-      ctx.response.body = { detail: "Failed to load API specification" };
-    }
-  }
+		ctx.response.headers.set("Content-Type", "text/html");
+		ctx.response.body = REDOC_HTML;
+	}
+
+	async serveOpenApiSpec(ctx: Context) {
+		logger.debug("Serving OpenAPI specification");
+
+		try {
+			const specPath = new URL("./openapi.yaml", import.meta.url).pathname;
+			const spec = await Deno.readTextFile(specPath);
+
+			ctx.response.headers.set("Content-Type", "application/yaml");
+			ctx.response.body = spec;
+		} catch (error) {
+			logger.error(
+				"Failed to load OpenAPI spec",
+				error instanceof Error ? error : new Error(String(error))
+			);
+			ctx.response.status = 500;
+			ctx.response.body = { detail: "Failed to load API specification" };
+		}
+	}
 }

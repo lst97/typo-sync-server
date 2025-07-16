@@ -32,8 +32,8 @@ def perform_analysis(file_path: str) -> dict:
         # Raw Pitch Contour Extraction
         f0, voiced_flag, voiced_probs = librosa.pyin(
             y, 
-            fmin=librosa.note_to_hz('C2'), 
-            fmax=librosa.note_to_hz('C7')
+            fmin=float(librosa.note_to_hz('C2')), 
+            fmax=float(librosa.note_to_hz('C7'))
         )
         pitch_times = librosa.times_like(f0)
         
