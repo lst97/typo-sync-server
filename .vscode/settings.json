@@ -1,12 +1,15 @@
 {
 	"cSpell.words": [
+		"appendonly",
 		"chromaprint",
 		"denoland",
 		"fmax",
 		"fmin",
+		"healthcheck",
 		"kbps",
 		"pglite",
 		"PGSQL",
+		"remoteip",
 		"streamable",
 		"tajpouria",
 		"typosync",

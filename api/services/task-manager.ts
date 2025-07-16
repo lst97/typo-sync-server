@@ -143,9 +143,38 @@ export class RedisTaskManager implements TaskManager {
 
 	async disconnect(): Promise<void> {
 		if (this.redis) {
-			await this.redis.quit();
-			this.redis = null;
-			logger.info("Disconnected from Redis");
+			try {
+				await this.redis.quit();
+				this.redis = null;
+				logger.info("Disconnected from Redis");
+			} catch (error) {
+				logger.error(
+					"Error disconnecting from Redis",
+					error instanceof Error ? error : new Error(String(error))
+				);
+				// Force null the connection
+				this.redis = null;
+			}
+		}
+	}
+
+	/**
+	 * Force close Redis connection during shutdown
+	 */
+	forceDisconnect(): void {
+		if (this.redis) {
+			try {
+				// Force close without waiting for pending operations
+				this.redis.close();
+				this.redis = null;
+				logger.info("Force disconnected from Redis");
+			} catch (error) {
+				logger.error(
+					"Error force disconnecting from Redis",
+					error instanceof Error ? error : new Error(String(error))
+				);
+				this.redis = null;
+			}
 		}
 	}
 }

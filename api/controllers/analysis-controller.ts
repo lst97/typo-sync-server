@@ -2,8 +2,9 @@ import { Context } from "../deps.ts";
 import { logger } from "../utils/logger.ts";
 import { AnalysisService } from "../services/analysis-service.ts";
 import { SUPPORTED_AUDIO_TYPES } from "../types/schemas.ts";
+import { turnstileService } from "../services/turnstile-service.ts";
 
-export class EnhancedAnalysisController {
+export class AnalysisController {
 	constructor(private analysisService: AnalysisService) {}
 
 	/**
@@ -60,6 +61,53 @@ export class EnhancedAnalysisController {
 				ctx.response.status = 400;
 				ctx.response.body = { error: "Invalid or corrupted form data" };
 				return;
+			}
+
+			// Validate Turnstile token if provided
+			const turnstileToken = formData.get("turnstile_token") as string;
+			if (turnstileService.isEnabled()) {
+				if (!turnstileToken) {
+					ctx.response.status = 400;
+					ctx.response.body = {
+						error: "Turnstile verification is required for cloud processing",
+					};
+					return;
+				}
+
+				// Get client IP for validation
+				const clientIp =
+					ctx.request.headers.get("cf-connecting-ip") ||
+					ctx.request.headers.get("x-forwarded-for") ||
+					ctx.request.headers.get("x-real-ip") ||
+					ctx.request.ip;
+
+				const validationResult = await turnstileService.validateToken(
+					turnstileToken,
+					clientIp
+				);
+
+				if (!validationResult.success) {
+					logger.warn(
+						"Turnstile validation failed",
+						new Error(validationResult.error || "Unknown validation error"),
+						{
+							clientIp,
+						}
+					);
+
+					ctx.response.status = 403;
+					ctx.response.body = {
+						error:
+							validationResult.error ||
+							"Security verification failed. Please complete the Turnstile verification.",
+					};
+					return;
+				}
+
+				logger.info("Turnstile validation successful", {
+					clientIp,
+					hostname: validationResult.hostname,
+				});
 			}
 
 			const fileField = formData.get("audio");

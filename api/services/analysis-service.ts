@@ -398,4 +398,11 @@ export class AnalysisService {
 		const ext = filename.split(".").pop()?.toLowerCase();
 		return ext || "unknown";
 	}
+
+	/**
+	 * Get the Python IPC service instance for process management
+	 */
+	getPythonIPCService(): PythonIPCService {
+		return this.pythonIPC;
+	}
 }

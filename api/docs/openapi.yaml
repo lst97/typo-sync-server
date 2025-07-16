@@ -11,6 +11,7 @@ info:
     - **Queue Management**: Position tracking and estimated wait times
     - **Multi-tier Caching**: In-memory, Redis, and database cache layers
     - **Audio Fingerprinting**: Duplicate detection using content and perceptual hashing
+    - **Security Validation**: Turnstile CAPTCHA verification for enhanced security
 
     ## API Versions
     - **v1**: ⚠️ DEPRECATED - Legacy endpoints (returns 410 Gone, no longer functional)
@@ -19,6 +20,12 @@ info:
     This API provides endpoints for uploading audio files and receiving detailed analysis
     results including BPM, beat timestamps, and melody extraction with comprehensive
     performance optimization.
+    
+    ## Security
+    The API implements Turnstile CAPTCHA verification for enhanced security. When enabled,
+    all `/v2/analyze` requests must include a valid `turnstile_token` parameter obtained
+    from the Turnstile widget. This helps prevent automated abuse while maintaining
+    accessibility for legitimate users.
   version: 2.0.0
   contact:
     name: TypoSync Development Team
@@ -255,13 +262,15 @@ paths:
         - **Queue position tracking**: Know exactly where your task stands
         - **Estimated wait times**: Get realistic processing time estimates
         - **Audio fingerprinting**: Duplicate detection using content and perceptual hashing
+        - **Security validation**: Turnstile CAPTCHA verification for enhanced security
 
         ### Process Flow:
-        1. Audio file is fingerprinted using multiple hash algorithms
-        2. Cache is checked (L1 → L2 → L3 hierarchy)
-        3. If cache miss, task is enqueued with specified priority
-        4. Queue position and estimated wait time are calculated
-        5. Background processing begins with real-time status updates
+        1. Security validation via Turnstile CAPTCHA (if enabled)
+        2. Audio file is fingerprinted using multiple hash algorithms
+        3. Cache is checked (L1 → L2 → L3 hierarchy)
+        4. If cache miss, task is enqueued with specified priority
+        5. Queue position and estimated wait time are calculated
+        6. Background processing begins with real-time status updates
       operationId: analyzeAudioEnhanced
       requestBody:
         required: true
@@ -283,6 +292,13 @@ paths:
                     - **high**: Critical requests, processed immediately
                     - **normal**: Standard requests, FIFO within priority
                     - **batch**: Background processing, lowest priority
+                turnstile_token:
+                  type: string
+                  description: |
+                    Turnstile CAPTCHA verification token for enhanced security.
+                    Required when Turnstile validation is enabled on the server.
+                    Obtain this token from the Turnstile widget on your frontend.
+                  example: "0.ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz..."
               required:
                 - audio
       responses:
@@ -337,6 +353,29 @@ paths:
                   summary: File size limit exceeded
                   value:
                     error: "File too large. Maximum size: 50MB"
+                turnstile_required:
+                  summary: Turnstile token required
+                  value:
+                    error: "Turnstile verification is required for cloud processing"
+        "403":
+          description: Security verification failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HTTPError"
+              examples:
+                turnstile_validation_failed:
+                  summary: Turnstile validation failed
+                  value:
+                    error: "Security verification failed. Please complete the Turnstile verification."
+                turnstile_token_invalid:
+                  summary: Invalid Turnstile token
+                  value:
+                    error: "Invalid Turnstile token"
+                turnstile_token_expired:
+                  summary: Expired Turnstile token
+                  value:
+                    error: "Turnstile token expired or already used"
         "413":
           description: File too large
           content:

@@ -11,6 +11,7 @@ export interface IPCResult {
 export class PythonIPCService {
 	private readonly pythonExecutable: string;
 	private readonly scriptPath: string;
+	private readonly activeProcesses = new Set<Deno.ChildProcess>();
 
 	constructor() {
 		this.pythonExecutable = config.config.python_executable;
@@ -20,6 +21,8 @@ export class PythonIPCService {
 	async analyzeAudio(filePath: string): Promise<IPCResult> {
 		logger.info("Starting Python IPC analysis", { filePath });
 
+		let process: Deno.ChildProcess | null = null;
+		
 		try {
 			// Verify the Python script exists
 			await this.validatePythonScript();
@@ -37,8 +40,23 @@ export class PythonIPCService {
 				args: [filePath],
 			});
 
-			const process = command.spawn();
+			process = command.spawn();
+			
+			// Track active process for cleanup
+			this.activeProcesses.add(process);
+			
 			const { code, stdout, stderr } = await process.output();
+			
+			// Close the process streams and remove from active processes
+			try {
+				await process.stdout.cancel();
+				await process.stderr.cancel();
+			} catch (closeError) {
+				logger.debug("Process streams already closed", { 
+					error: closeError instanceof Error ? closeError.message : String(closeError) 
+				});
+			}
+			this.activeProcesses.delete(process);
 
 			// Log the process completion
 			logger.debug("Python process completed", { exitCode: code });
@@ -163,6 +181,20 @@ export class PythonIPCService {
 				"IPC communication failed",
 				error instanceof Error ? error : new Error(String(error))
 			);
+			
+			// Clean up any zombie processes
+			if (process) {
+				try {
+					await process.stdout.cancel();
+					await process.stderr.cancel();
+					this.activeProcesses.delete(process);
+				} catch (cleanupError) {
+					logger.warn("Failed to clean up process during error", 
+						cleanupError instanceof Error ? cleanupError : new Error(String(cleanupError))
+					);
+				}
+			}
+			
 			return {
 				success: false,
 				error: `IPC communication error: ${
@@ -173,6 +205,8 @@ export class PythonIPCService {
 	}
 
 	private async validatePythonScript(): Promise<void> {
+		let testProcess: Deno.ChildProcess | null = null;
+		
 		try {
 			// Check if the script file exists
 			const scriptStat = await Deno.stat(this.scriptPath);
@@ -187,8 +221,23 @@ export class PythonIPCService {
 				stderr: "piped",
 			});
 
-			const testProcess = testCommand.spawn();
+			testProcess = testCommand.spawn();
+			
+			// Track test process for cleanup
+			this.activeProcesses.add(testProcess);
+			
 			const { code } = await testProcess.output();
+			
+			// Close the test process streams and remove from active processes
+			try {
+				await testProcess.stdout.cancel();
+				await testProcess.stderr.cancel();
+			} catch (closeError) {
+				logger.debug("Test process streams already closed", { 
+					error: closeError instanceof Error ? closeError.message : String(closeError) 
+				});
+			}
+			this.activeProcesses.delete(testProcess);
 
 			if (code !== 0) {
 				throw new Error(
@@ -205,6 +254,20 @@ export class PythonIPCService {
 				"Python script validation failed",
 				error instanceof Error ? error : new Error(String(error))
 			);
+			
+			// Clean up test process on error
+			if (testProcess) {
+				try {
+					await testProcess.stdout.cancel();
+					await testProcess.stderr.cancel();
+					this.activeProcesses.delete(testProcess);
+				} catch (cleanupError) {
+					logger.warn("Failed to clean up test process during error", 
+						cleanupError instanceof Error ? cleanupError : new Error(String(cleanupError))
+					);
+				}
+			}
+			
 			throw new Error(
 				`Python script validation failed: ${
 					error instanceof Error ? error.message : String(error)
@@ -223,5 +286,66 @@ export class PythonIPCService {
 				error: error instanceof Error ? error.message : String(error),
 			};
 		}
+	}
+
+	/**
+	 * Terminate all active Python processes during shutdown
+	 */
+	async terminateAllProcesses(): Promise<void> {
+		logger.info("Terminating Python processes", { 
+			activeProcessCount: this.activeProcesses.size 
+		});
+
+		const terminationPromises = Array.from(this.activeProcesses).map(async (process) => {
+			try {
+				// Try graceful termination first
+				process.kill("SIGTERM");
+				
+				// Wait a bit for graceful shutdown
+				await new Promise(resolve => setTimeout(resolve, 2000));
+				
+				// Force kill if still running
+				try {
+					process.kill("SIGKILL");
+				} catch (killError) {
+					// Process might already be dead
+					logger.debug("Process already terminated", { 
+						error: killError instanceof Error ? killError.message : String(killError) 
+					});
+				}
+				
+				// Close streams and remove from active processes
+				try {
+					await process.stdout.cancel();
+					await process.stderr.cancel();
+				} catch (closeError) {
+					logger.debug("Process streams already closed", { 
+						error: closeError instanceof Error ? closeError.message : String(closeError) 
+					});
+				}
+				
+				this.activeProcesses.delete(process);
+				
+				logger.debug("Python process terminated");
+			} catch (error) {
+				logger.error("Error terminating Python process", 
+					error instanceof Error ? error : new Error(String(error))
+				);
+			}
+		});
+
+		await Promise.all(terminationPromises);
+		
+		// Clear the set
+		this.activeProcesses.clear();
+		
+		logger.info("All Python processes terminated");
+	}
+
+	/**
+	 * Get count of active Python processes
+	 */
+	getActiveProcessCount(): number {
+		return this.activeProcesses.size;
 	}
 }

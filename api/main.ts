@@ -8,6 +8,7 @@ import { cacheRouter } from "./routes/cache.ts";
 import { analysisRouter, enhancedAnalysisService } from "./routes/analysis.ts";
 import { DocsHandler } from "./docs/docs-handler.ts";
 import { shutdownManager } from "./services/shutdown-manager.ts";
+import { processManager } from "./services/process-manager.ts";
 
 function createApp(): Application {
 	const app = new Application();
@@ -66,12 +67,18 @@ function createApp(): Application {
 	app.use(async (ctx, next) => {
 		if (ctx.request.url.pathname === "/" && ctx.request.method === "GET") {
 			const health = await enhancedAnalysisService.healthCheck();
+			const processStatus = processManager.getProcessStatus();
+			
 			ctx.response.body = {
 				status: health.python_engine.healthy
 					? "Rhythm Analysis Engine is running"
 					: "Service unavailable",
 				backend: config.backend,
 				python_check: health.python_engine,
+				process_status: {
+					active_python_processes: processStatus.pythonProcesses,
+					redis_connected: processStatus.redisConnected,
+				},
 			};
 			ctx.response.status = health.python_engine.healthy ? 200 : 503;
 			return;
@@ -115,11 +122,14 @@ async function startServer() {
 		shutdownManager.setupSignalHandlers();
 
 		// Register application-specific shutdown handlers
-		shutdownManager.registerShutdownHandler(() => {
+		shutdownManager.registerShutdownHandler(async () => {
 			logger.info("Closing application connections...");
-			// Add any application-specific cleanup here
-			// For example, close active HTTP connections, stop background tasks, etc.
-			return Promise.resolve();
+			
+			// Terminate all active Python processes and close Redis connections
+			await processManager.cleanupAll();
+			
+			// Additional cleanup tasks
+			logger.info("Application cleanup completed");
 		});
 
 		const app = createApp();
