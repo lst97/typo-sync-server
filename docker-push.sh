@@ -1,67 +1,52 @@
 #!/bin/bash
 
-# TypoSync Docker Hub Push Script
-# This script builds and pushes the TypoSync images to Docker Hub
-
+# Exit immediately if a command exits with a non-zero status.
 set -e
 
-echo "🚀 TypoSync Docker Hub Push Script"
-echo "================================="
+# --- Configuration ---
+# Get the directory of the script
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+API_DIR="$SCRIPT_DIR/api"
+RHYTHM_ENGINE_DIR="$SCRIPT_DIR/rhythm_engine"
+DOCKER_HUB_USERNAME="lst97"
 
-# Configuration
-REGISTRY="docker.io"
-NAMESPACE="typosync"
-API_IMAGE="$NAMESPACE/api"
-ENGINE_IMAGE="$NAMESPACE/rhythm-engine"
-TAG="${1:-latest}"
+# Docker image configuration
+API_IMAGE="typosync-api"
+ENGINE_IMAGE="typosync-rhythm-engine"
+TAG="latest"
+REGISTRY="$DOCKER_HUB_USERNAME"
+NAMESPACE="$DOCKER_HUB_USERNAME"
 
-echo "📋 Configuration:"
-echo "   Registry: $REGISTRY"
-echo "   Namespace: $NAMESPACE"
-echo "   Tag: $TAG"
-echo ""
+export PATH="$PATH:/Applications/Docker.app/Contents/Resources/bin/"
 
-# Check if Docker is running
-if ! docker info > /dev/null 2>&1; then
-    echo "❌ Docker is not running. Please start Docker first."
-    exit 1
-fi
+# Set up Docker Buildx for multi-architecture builds
+echo "🔧 Setting up Docker Buildx..."
+docker buildx create --name multiarch-builder --use --bootstrap || true
+docker buildx inspect --bootstrap
 
-# Check if we're logged in to Docker Hub
-if ! docker info | grep -q "Username"; then
-    echo "⚠️  You are not logged in to Docker Hub."
-    echo "   Please run: docker login"
-    exit 1
-fi
+echo "🏗️  Building and pushing multi-architecture images..."
 
-echo "🏗️  Building images..."
+# Build and push API image for multiple architectures
+echo "Building and pushing API image for arm64 and amd64..."
+docker buildx build \
+  --platform linux/amd64,linux/arm64 \
+  --tag "$REGISTRY/$API_IMAGE:$TAG" \
+  --push \
+  ./api
 
-# Build API image
-echo "Building API image..."
-docker build -t "$API_IMAGE:$TAG" ./api
+# Build and push Rhythm Engine image for multiple architectures
+echo "Building and pushing Rhythm Engine image for arm64 and amd64..."
+docker buildx build \
+  --platform linux/amd64,linux/arm64 \
+  --tag "$REGISTRY/$ENGINE_IMAGE:$TAG" \
+  --push \
+  ./rhythm_engine
 
-# Build Rhythm Engine image
-echo "Building Rhythm Engine image..."
-docker build -t "$ENGINE_IMAGE:$TAG" ./rhythm_engine
+echo "✅ Multi-architecture images built and pushed successfully!"
 
-echo "✅ Images built successfully!"
-
-# Tag images for Docker Hub
-echo "🏷️  Tagging images..."
-docker tag "$API_IMAGE:$TAG" "$REGISTRY/$API_IMAGE:$TAG"
-docker tag "$ENGINE_IMAGE:$TAG" "$REGISTRY/$ENGINE_IMAGE:$TAG"
-
-# Push to Docker Hub
-echo "📤 Pushing images to Docker Hub..."
-docker push "$REGISTRY/$API_IMAGE:$TAG"
-docker push "$REGISTRY/$ENGINE_IMAGE:$TAG"
-
-echo "✅ Images pushed successfully!"
-
-# Clean up local tags
-echo "🧹 Cleaning up local tags..."
-docker rmi "$REGISTRY/$API_IMAGE:$TAG" || true
-docker rmi "$REGISTRY/$ENGINE_IMAGE:$TAG" || true
+# Clean up buildx builder
+echo "🧹 Cleaning up buildx builder..."
+docker buildx rm multiarch-builder || true
 
 echo ""
 echo "🎉 Docker Hub push completed!"

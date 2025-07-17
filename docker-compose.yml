@@ -9,7 +9,7 @@ services:
     image: typosync/api:latest
     container_name: typosync_api
     ports:
-      - "8000:8000"
+      - "8010:8000"
     environment:
       - PORT=8000
       - LOG_LEVEL=INFO
@@ -51,10 +51,6 @@ services:
         reservations:
           cpus: "0.5"
           memory: 256M
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.typosync.rule=Host(`typosync.localhost`)"
-      - "traefik.http.services.typosync.loadbalancer.server.port=8000"
 
   # Python Rhythm Engine
   rhythm_engine:

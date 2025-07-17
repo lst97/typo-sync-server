@@ -16,7 +16,7 @@ This document describes the Docker Hub images for TypoSync, a modern audio analy
 
 - **Image**: `typosync/rhythm-engine:latest`
 - **Description**: Python audio analysis engine with librosa
-- **Base Image**: `python:3.11-slim`
+- **Base Image**: `python:3.13-slim`
 - **Architecture**: AMD64, ARM64
 
 ## 🚀 Quick Start

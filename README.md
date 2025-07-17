@@ -58,7 +58,7 @@ A modern, enterprise-grade audio analysis service featuring a hybrid Deno-Python
 ## 📋 Prerequisites
 
 - **Deno** 1.45+ ([installation guide](https://deno.land/#installation))
-- **Python** 3.9+ with pip
+- **Python** 3.13+ with pip
 - **Docker & Docker Compose** (for containerized deployment)
 - **Make** (optional, for simplified commands)
 
