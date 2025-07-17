@@ -1,11 +1,15 @@
 services:
   # Deno API Server
   api:
-    build: 
+    build:
       context: ./api
       dockerfile: Dockerfile
+      args:
+        - BUILDKIT_INLINE_CACHE=1
+    image: typosync/api:latest
+    container_name: typosync_api
     ports:
-      - "8000:8000"
+      - "8010:8000"
     environment:
       - PORT=8000
       - LOG_LEVEL=INFO
@@ -13,14 +17,25 @@ services:
       - PYTHON_EXECUTABLE=python3
       - RHYTHM_ENGINE_PATH=/rhythm_engine/run.py
       - UPLOAD_DIR=/app/uploads
-      - MAX_FILE_SIZE=52428800  # 50MB
+      - MAX_FILE_SIZE=52428800 # 50MB
+      - TURNSTILE_SECRET_KEY=0xXXXXXXXXXXXXX
+      - DATABASE_URL=/app/data/typosync.db
+      - CACHE_L1_MAX_SIZE=100
+      - CACHE_L1_TTL_MS=15000
+      - CACHE_L2_TTL_MS=3600000
+      - CACHE_L3_TTL_MS=86400000
+      - QUEUE_CONCURRENCY_LIMIT=2
+      - QUEUE_PROCESSING_TIMEOUT=300000
     volumes:
-      - ./api:/app
-      - ./rhythm_engine:/rhythm_engine:ro  # Mount Python engine as read-only
+      - ./rhythm_engine:/rhythm_engine:ro # Mount Python engine as read-only
       - api_uploads:/app/uploads
+      - api_data:/app/data
+      - api_logs:/app/logs
     depends_on:
-      - redis
-      - rhythm_engine
+      redis:
+        condition: service_healthy
+      rhythm_engine:
+        condition: service_healthy
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "deno", "run", "--allow-net", "healthcheck.ts"]
@@ -28,60 +43,85 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+        reservations:
+          cpus: "0.5"
+          memory: 256M
 
   # Python Rhythm Engine
   rhythm_engine:
     build:
       context: ./rhythm_engine
       dockerfile: Dockerfile
+      args:
+        - BUILDKIT_INLINE_CACHE=1
+    image: typosync/rhythm-engine:latest
+    container_name: typosync_rhythm_engine
     volumes:
-      - ./rhythm_engine:/app:ro  # Read-only mount
+      - ./rhythm_engine:/app:ro # Read-only mount
     # This service is used as a worker, not a standalone service
     # The API will call it via IPC
-    command: ["tail", "-f", "/dev/null"]  # Keep container running
+    command: ["tail", "-f", "/dev/null"] # Keep container running
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "python", "run.py", "--version"]
       interval: 30s
       timeout: 10s
       retries: 3
+      start_period: 20s
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 1G
+        reservations:
+          cpus: "1.0"
+          memory: 512M
 
-  # Redis for task management
+  # Redis for task management and L2 caching
   redis:
     image: redis:7-alpine
+    container_name: typosync_redis
     ports:
-      - "6379:6379"
+      - "${REDIS_PORT:-6379}:6379"
     volumes:
       - redis_data:/data
+      - redis_logs:/var/log/redis
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
-    command: redis-server --appendonly yes
-
-  # Nginx reverse proxy (optional)
-  nginx:
-    image: nginx:alpine
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./nginx/ssl:/etc/nginx/ssl:ro
-    depends_on:
-      - api
-    restart: unless-stopped
-    profiles:
-      - production  # Only start with --profile production
+      start_period: 10s
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
+        reservations:
+          cpus: "0.2"
+          memory: 128M
 
 volumes:
   redis_data:
     driver: local
   api_uploads:
     driver: local
+  api_data:
+    driver: local
+  api_logs:
+    driver: local
+  redis_logs:
+    driver: local
 
 networks:
   default:
     name: typosync_network
+  cloudflare-network:
+    name: cloudflare-network

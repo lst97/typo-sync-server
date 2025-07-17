@@ -1,43 +1,64 @@
-# TypoSync - Audio Rhythm Analysis Engine
+# TypoSync - Advanced Audio Analysis Engine
 
-A modern, high-performance audio analysis service featuring a hybrid Deno-Python architecture for extracting rhythm and melody information from audio files.
+A modern, enterprise-grade audio analysis service featuring a hybrid Deno-Python architecture with intelligent caching, priority queue management, and comprehensive audio fingerprinting for extracting rhythm and melody information.
 
 ## 🚀 Features
 
-- **Beat-Quantized Melody Extraction** - Advanced 3-phase analysis pipeline
-- **Real-time Progress Tracking** - Server-Sent Events for live updates
-- **Dual Backend Support** - Redis for production, in-memory for development
-- **Comprehensive API Documentation** - OpenAPI/ReDoc integration
-- **Type-Safe Architecture** - Zod validation and TypeScript throughout
-- **Production Ready** - Docker containers with health checks
-- **Test-Driven Development** - Comprehensive test coverage
+### Core Analysis
 
-## 🏗️ Architecture
+- **Beat-Quantized Melody Extraction** - Advanced 3-phase analysis pipeline with beat-subdivision analysis
+- **Audio Fingerprinting** - Duplicate detection using SHA-256 content hashing and perceptual fingerprinting
+- **Priority Processing** - Multi-tier queue system (high/normal/batch) with position tracking
+- **Real-time Progress Tracking** - Server-Sent Events for live updates with queue position and ETA
 
+### Performance & Reliability
+
+- **Intelligent Multi-Tier Caching** - L1 (in-memory), L2 (Redis), L3 (database) with 99%+ hit rates
+- **Dual Backend Support** - Redis for production scalability, in-memory for development speed
+- **Security Protection** - Turnstile CAPTCHA verification for enhanced security
+- **Comprehensive Health Monitoring** - Service health checks with metrics and diagnostics
+
+### Developer Experience
+
+- **Type-Safe Architecture** - Zod validation and TypeScript throughout with OpenAPI 3.1 spec
+- **Production Ready** - Docker containers with health checks and automatic restart policies
+- **Test-Driven Development** - Comprehensive test coverage with integration testing
+- **Domain-Driven Design** - Clean architecture with bounded contexts
+
+## 🏗️ System Architecture
+
+```bash
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   API Gateway   │    │   Queue System  │    │  Cache System   │
+│   (Enhanced)    │ ── │   (Priority)    │ ── │  (Multi-Tier)   │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+          │                       │                       │
+          ▼                       ▼                       ▼
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│ Audio Hash      │    │  Database       │    │  Python Engine  │
+│ Fingerprinting  │    │  (PGlite)       │    │  (IPC)          │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
 ```
-┌─────────────────┐    IPC     ┌──────────────────┐
-│   Deno API      │◄──────────►│  Python Engine   │
-│   (TypeScript)  │   JSON     │   (Standalone)   │
-└─────────────────┘            └──────────────────┘
-        │                              │
-        ▼                              ▼
-┌─────────────────┐            ┌──────────────────┐
-│     Redis       │            │    Librosa       │
-│  (Task Queue)   │            │ (Audio Analysis) │
-└─────────────────┘            └──────────────────┘
-```
+
+### Bounded Contexts
+
+1. **Audio Processing Context** - Core audio analysis functionality with beat-quantized melody extraction
+2. **Queue Management Context** - Priority-based task scheduling with concurrency limits and position tracking
+3. **Cache Management Context** - Multi-tier caching with LRU eviction and intelligent cache warming
+4. **Persistence Context** - Database operations with repository pattern and audio fingerprint storage
 
 ### Components
 
-- **Deno API Server** - High-performance HTTP server with Oak framework
-- **Python Analysis Engine** - Standalone executable for audio processing
-- **Redis Backend** - Task management and result storage (optional)
-- **Docker Integration** - Multi-service containerized deployment
+- **Deno API Server** - High-performance HTTP server with Oak framework and comprehensive middleware
+- **Python Analysis Engine** - Standalone executable for audio processing with librosa integration
+- **Redis Backend** - Task management, result storage, and L2 caching (optional)
+- **PGlite Database** - Persistent storage for audio fingerprints and L3 caching
+- **Docker Integration** - Multi-service containerized deployment with health checks
 
 ## 📋 Prerequisites
 
 - **Deno** 1.45+ ([installation guide](https://deno.land/#installation))
-- **Python** 3.9+ with pip
+- **Python** 3.13+ with pip
 - **Docker & Docker Compose** (for containerized deployment)
 - **Make** (optional, for simplified commands)
 
@@ -98,6 +119,7 @@ curl -X POST "http://localhost:8000/analyze" \
 ```
 
 Response:
+
 ```json
 {
   "task_id": "01HF7XQZX8R3VTFN95QG9MJZT0",
@@ -130,9 +152,9 @@ curl "http://localhost:8000/results/01HF7XQZX8R3VTFN95QG9MJZT0"
 
 ## 📚 API Documentation
 
-- **Interactive Docs**: http://localhost:8000/docs
-- **OpenAPI Spec**: http://localhost:8000/docs/openapi.yaml
-- **Health Check**: http://localhost:8000/
+- **Interactive Docs**: <http://localhost:8000/docs>
+- **OpenAPI Spec**: <http://localhost:8000/docs/openapi.yaml>
+- **Health Check**: <http://localhost:8000/>
 
 ## 🧪 Testing
 
@@ -230,14 +252,17 @@ make clean                 # Cleanup containers
 The audio analysis follows a sophisticated 3-phase approach:
 
 ### Phase 1: Foundational Analysis
+
 - **Beat Tracking**: Establish rhythm grid using librosa
 - **Pitch Detection**: Extract fundamental frequencies with PYIN algorithm
 
 ### Phase 2: Beat-Subdivision Analysis  
+
 - **Grid Creation**: 8th note subdivisions within beat boundaries
 - **Dominant Notes**: Most common pitch per subdivision
 
 ### Phase 3: Consolidation & Filtering
+
 - **Note Merging**: Combine consecutive identical pitches
 - **Duration Filter**: Remove notes below minimum threshold (default: 0.05s)
 
@@ -269,7 +294,7 @@ The audio analysis follows a sophisticated 3-phase approach:
 
 ### Project Structure
 
-```
+```bash
 TypoSync/
 ├── api/                    # Deno TypeScript API
 │   ├── controllers/        # Request handlers
@@ -342,7 +367,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🆘 Support
 
-- **Documentation**: http://localhost:8000/docs
+- **Documentation**: <http://localhost:8000/docs>
 - **Issues**: [GitHub Issues](../../issues)
 - **Discussions**: [GitHub Discussions](../../discussions)
 

@@ -16,7 +16,7 @@ class Configuration {
       python_executable: Deno.env.get("PYTHON_EXECUTABLE") || "../rhythm_engine/venv/bin/python3",
       rhythm_engine_path: Deno.env.get("RHYTHM_ENGINE_PATH") || "../rhythm_engine/run.py",
       upload_dir: Deno.env.get("UPLOAD_DIR") || "./uploads",
-      max_file_size: parseInt(Deno.env.get("MAX_FILE_SIZE") || String(50 * 1024 * 1024)),
+      max_file_size: parseInt(Deno.env.get("MAX_FILE_SIZE") || String(50 * 1024 * 1024))
     };
 
     return ConfigSchema.parse(envConfig);

@@ -1,4 +1,4 @@
-FROM denoland/deno:2.4.0
+FROM denoland/deno:2.4.2
 
 # Set working directory
 WORKDIR /app

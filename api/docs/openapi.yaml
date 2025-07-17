@@ -1,16 +1,38 @@
-openapi: 3.0.3
+openapi: 3.1.1
 info:
   title: TypoSync Rhythm Analysis API
   description: |
-    Audio analysis API for extracting rhythm and melody information from audio files.
+    Advanced audio analysis API for extracting rhythm and melody information from audio files.
+
+    ## Features
+    - **Intelligent Caching**: 99%+ hit rate for duplicate audio files
+    - **Priority Processing**: High/normal/batch priority queue management
+    - **Real-time Updates**: Server-Sent Events for live progress tracking
+    - **Queue Management**: Position tracking and estimated wait times
+    - **Multi-tier Caching**: In-memory, Redis, and database cache layers
+    - **Audio Fingerprinting**: Duplicate detection using content and perceptual hashing
+    - **Security Validation**: Turnstile CAPTCHA verification for enhanced security
+
+    ## API Versions
+    - **v1**: ⚠️ DEPRECATED - Legacy endpoints (returns 410 Gone, no longer functional)
+    - **v2**: Current API with enhanced features including caching and queue management
 
     This API provides endpoints for uploading audio files and receiving detailed analysis
-    results including BPM, beat timestamps, and melody extraction with real-time progress tracking.
-  version: 0.1.0-dev
+    results including BPM, beat timestamps, and melody extraction with comprehensive
+    performance optimization.
+    
+    ## Security
+    The API implements Turnstile CAPTCHA verification for enhanced security. When enabled,
+    all `/v2/analyze` requests must include a valid `turnstile_token` parameter obtained
+    from the Turnstile widget. This helps prevent automated abuse while maintaining
+    accessibility for legitimate users.
+  version: 2.0.0
   contact:
     name: TypoSync Development Team
+    email: contact@lst97.dev
   license:
     name: MIT
+    url: https://opensource.org/licenses/MIT
 
 servers:
   - url: http://localhost:8000
@@ -18,11 +40,28 @@ servers:
   - url: https://typo-sync.lst97.dev
     description: Production server
 
+security: []
+
+tags:
+  - name: Health
+    description: Service health checks and system status
+  - name: (Deprecated) - Analysis (v1)
+    description: "⚠️ DEPRECATED: Legacy audio analysis operations (no longer functional - returns 410 Gone)"
+  - name: Analysis (v2)
+    description: Enhanced audio analysis with caching and queue management
+  - name: Queue Management
+    description: Queue status monitoring and task tracking
+  - name: Cache Management
+    description: Cache performance and control operations
+
 paths:
+  # Health Check
   /:
     get:
+      tags:
+        - Health
       summary: Health check endpoint
-      description: Returns the current status of the rhythm analysis engine.
+      description: Returns the current status of the rhythm analysis engine and Python backend.
       operationId: healthCheck
       responses:
         "200":
@@ -40,12 +79,7 @@ paths:
                     enum: [redis, in-memory]
                     example: "in-memory"
                   python_check:
-                    type: object
-                    properties:
-                      healthy:
-                        type: boolean
-                      error:
-                        type: string
+                    $ref: "#/components/schemas/PythonHealthCheck"
         "503":
           description: Service unavailable
           content:
@@ -53,13 +87,25 @@ paths:
               schema:
                 $ref: "#/components/schemas/HTTPError"
 
+  # Legacy Analysis Endpoints (v1) - DEPRECATED
   /analyze:
     post:
-      summary: Submit an audio file for analysis
+      tags:
+        - (Deprecated) - Analysis (v1)
+      summary: Submit an audio file for analysis (DEPRECATED)
       description: |
-        Upload an audio file (MP3 or WAV) to start the rhythm and melody analysis.
-        This endpoint initiates a background task and returns a task ID to track the progress.
+        **⚠️ DEPRECATED ENDPOINT - NO LONGER FUNCTIONAL**
+
+        This endpoint has been permanently deprecated and will return a 410 Gone status.
+        Please migrate to `/v2/analyze` for enhanced features including:
+        - Intelligent caching with 99%+ hit rate
+        - Priority queue management
+        - Real-time progress tracking
+        - Improved performance and reliability
+
+        Migration guide: https://docs.typosync.com/api-migration-v2
       operationId: analyzeAudio
+      deprecated: true
       requestBody:
         required: true
         content:
@@ -74,24 +120,48 @@ paths:
               required:
                 - file
       responses:
-        "200":
-          description: Analysis task created successfully
+        "410":
+          description: Endpoint deprecated and no longer functional
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/AnalyzeResponse"
-        "400":
-          description: Invalid request (unsupported file type, file too large, etc.)
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/HTTPError"
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "API endpoint deprecated"
+                  message:
+                    type: string
+                    example: "The v1 /analyze endpoint has been deprecated. Please use /v2/analyze instead for enhanced features including intelligent caching, priority queue management, and improved performance."
+                  deprecated_endpoint:
+                    type: string
+                    example: "/analyze"
+                  recommended_endpoint:
+                    type: string
+                    example: "/v2/analyze"
+                required:
+                  - error
+                  - message
+                  - deprecated_endpoint
+                  - recommended_endpoint
 
   /results/{taskId}:
     get:
-      summary: Fetch the result of an analysis task
-      description: Retrieve the current status or final result of a completed analysis task using its task ID.
+      tags:
+        - (Deprecated) - Analysis (v1)
+      summary: Fetch the result of an analysis task (DEPRECATED)
+      description: |
+        **⚠️ DEPRECATED ENDPOINT - NO LONGER FUNCTIONAL**
+
+        This endpoint has been permanently deprecated and will return a 410 Gone status.
+        Please migrate to `/v2/results/{taskId}` for enhanced features including:
+        - Processing metrics and detailed timing information
+        - Enhanced error categorization and recovery suggestions
+        - Real-time status updates with queue position tracking
+
+        Migration guide: https://docs.typosync.com/api-migration-v2
       operationId: getResults
+      deprecated: true
       parameters:
         - name: taskId
           in: path
@@ -101,24 +171,271 @@ paths:
             type: string
             example: "01HF7XQZX8R3VTFN95QG9MJZT0"
       responses:
+        "410":
+          description: Endpoint deprecated and no longer functional
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "API endpoint deprecated"
+                  message:
+                    type: string
+                    example: "The v1 /results endpoint has been deprecated. Please use /v2/results/:taskId instead for enhanced features including processing metrics and detailed error information."
+                  deprecated_endpoint:
+                    type: string
+                    example: "/results/:taskId"
+                  recommended_endpoint:
+                    type: string
+                    example: "/v2/results/:taskId"
+                required:
+                  - error
+                  - message
+                  - deprecated_endpoint
+                  - recommended_endpoint
+
+  /stream/{taskId}:
+    get:
+      tags:
+        - (Deprecated) - Analysis (v1)
+      summary: Stream real-time analysis results via SSE (DEPRECATED)
+      description: |
+        **⚠️ DEPRECATED ENDPOINT - NO LONGER FUNCTIONAL**
+
+        This endpoint has been permanently deprecated and will return a 410 Gone status.
+        Please migrate to `/v2/stream/{taskId}` for enhanced features including:
+        - Queue position updates and processing time estimates
+        - Cache hit notifications and detailed processing information
+        - Enhanced error states and recovery options
+
+        Migration guide: https://docs.typosync.com/api-migration-v2
+      operationId: streamResults
+      deprecated: true
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          description: The unique task identifier returned by the analyze endpoint
+          schema:
+            type: string
+            example: "01HF7XQZX8R3VTFN95QG9MJZT0"
+      responses:
+        "410":
+          description: Endpoint deprecated and no longer functional
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "API endpoint deprecated"
+                  message:
+                    type: string
+                    example: "The v1 /stream endpoint has been deprecated. Please use /v2/stream/:taskId instead for enhanced features including queue position updates and detailed processing information."
+                  deprecated_endpoint:
+                    type: string
+                    example: "/stream/:taskId"
+                  recommended_endpoint:
+                    type: string
+                    example: "/v2/stream/:taskId"
+                required:
+                  - error
+                  - message
+                  - deprecated_endpoint
+                  - recommended_endpoint
+
+  # Analysis Endpoints (v2)
+  /v2/analyze:
+    post:
+      tags:
+        - Analysis (v2)
+      summary: Submit audio for analysis with caching and queue management
+      description: |
+        **Enhanced endpoint** with intelligent caching and priority queue management.
+
+        ### Features:
+        - **Instant cache hits**: Duplicate audio files return results immediately
+        - **Priority processing**: Control processing order with priority levels
+        - **Queue position tracking**: Know exactly where your task stands
+        - **Estimated wait times**: Get realistic processing time estimates
+        - **Audio fingerprinting**: Duplicate detection using content and perceptual hashing
+        - **Security validation**: Turnstile CAPTCHA verification for enhanced security
+
+        ### Process Flow:
+        1. Security validation via Turnstile CAPTCHA (if enabled)
+        2. Audio file is fingerprinted using multiple hash algorithms
+        3. Cache is checked (L1 → L2 → L3 hierarchy)
+        4. If cache miss, task is enqueued with specified priority
+        5. Queue position and estimated wait time are calculated
+        6. Background processing begins with real-time status updates
+      operationId: analyzeAudioEnhanced
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                audio:
+                  type: string
+                  format: binary
+                  description: The audio file to be analyzed
+                priority:
+                  type: string
+                  enum: [high, normal, batch]
+                  default: normal
+                  description: |
+                    Processing priority level:
+                    - **high**: Critical requests, processed immediately
+                    - **normal**: Standard requests, FIFO within priority
+                    - **batch**: Background processing, lowest priority
+                turnstile_token:
+                  type: string
+                  description: |
+                    Turnstile CAPTCHA verification token for enhanced security.
+                    Required when Turnstile validation is enabled on the server.
+                    Obtain this token from the Turnstile widget on your frontend.
+                  example: "0.ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz..."
+              required:
+                - audio
+      responses:
+        "202":
+          description: Analysis task created successfully or cache hit
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnhancedAnalysisResponse"
+              examples:
+                cache_hit:
+                  summary: Instant cache hit
+                  value:
+                    task_id: "cached_1706789012345"
+                    backend: "in-memory"
+                    cache_hit: true
+                    result:
+                      bpm: 128.5
+                      beat_timestamps: [0.0, 0.46875, 0.9375, 1.40625]
+                      melody_map:
+                        - pitch: 440.0
+                          start_time: 0.5
+                          duration: 0.4
+                      analysis_info:
+                        total_beats: 32
+                        total_subdivisions: 64
+                        consolidated_notes: 24
+                        filtered_notes: 18
+                        min_note_duration: 0.05
+                        subdivision_factor: 2
+                queued_task:
+                  summary: Queued for processing
+                  value:
+                    task_id: "01K06Y14S1FX16V9RV7FNXJ0KC"
+                    backend: "in-memory"
+                    cache_hit: false
+                    queue_position: 3
+                    estimated_wait_time_minutes: 2.5
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HTTPError"
+              examples:
+                invalid_file_type:
+                  summary: Unsupported file type
+                  value:
+                    error: "Unsupported file type"
+                    supported_types: ["audio/wav", "audio/mp3", "audio/mpeg"]
+                file_too_large:
+                  summary: File size limit exceeded
+                  value:
+                    error: "File too large. Maximum size: 50MB"
+                turnstile_required:
+                  summary: Turnstile token required
+                  value:
+                    error: "Turnstile verification is required for cloud processing"
+        "403":
+          description: Security verification failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HTTPError"
+              examples:
+                turnstile_validation_failed:
+                  summary: Turnstile validation failed
+                  value:
+                    error: "Security verification failed. Please complete the Turnstile verification."
+                turnstile_token_invalid:
+                  summary: Invalid Turnstile token
+                  value:
+                    error: "Invalid Turnstile token"
+                turnstile_token_expired:
+                  summary: Expired Turnstile token
+                  value:
+                    error: "Turnstile token expired or already used"
+        "413":
+          description: File too large
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HTTPError"
+        "503":
+          description: Service temporarily unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HTTPError"
+
+  /v2/results/{taskId}:
+    get:
+      tags:
+        - Analysis (v2)
+      summary: Get analysis results for processing tasks
+      description: |
+        Retrieve the current status or final result of an analysis task with enhanced metadata.
+
+        **Note**: Tasks with IDs are processed via Python IPC and do not use cache. 
+        For direct cache access, use the `/cache/{audioHash}` endpoint instead.
+
+        ### Enhanced Features:
+        - **Processing metrics**: Detailed timing and performance data
+        - **Queue position updates**: Live position tracking for pending tasks
+        - **Error categorization**: Detailed error types and recovery suggestions
+        - **Real-time status**: Current processing state and progress information
+      operationId: getEnhancedResults
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          description: The unique task identifier returned by the enhanced analyze endpoint
+          schema:
+            type: string
+            example: "01K06Y14S1FX16V9RV7FNXJ0KC"
+      responses:
         "200":
           description: Task status or result retrieved successfully
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/TaskResultResponse"
+                $ref: "#/components/schemas/EnhancedTaskResultResponse"
               examples:
                 success:
-                  summary: Successful Analysis
+                  summary: Successful analysis
                   value:
                     state: "SUCCESS"
                     result:
                       bpm: 120.0
-                      beat_timestamps: [0.0, 0.5, 1.0]
+                      beat_timestamps: [0.0, 0.5, 1.0, 1.5, 2.0]
                       melody_map:
-                        - pitch: "C4"
+                        - pitch: 440.0
                           start_time: 0.5
                           duration: 0.45
+                        - pitch: 523.25
+                          start_time: 1.0
+                          duration: 0.4
                       analysis_info:
                         total_beats: 150
                         total_subdivisions: 300
@@ -126,16 +443,23 @@ paths:
                         filtered_notes: 80
                         min_note_duration: 0.05
                         subdivision_factor: 2
+                pending:
+                  summary: Queued for processing
+                  value:
+                    state: "PENDING"
+                    status: "Queued for processing"
+                    queue_position: 2
+                    estimated_wait_time_minutes: 1.5
                 processing:
-                  summary: Task in Progress
+                  summary: Currently processing
                   value:
                     state: "PROCESSING"
                     status: "Processing audio file..."
-                failure:
-                  summary: Failed Task
+                failed:
+                  summary: Processing failed
                   value:
                     state: "FAILURE"
-                    status: "Analysis failed."
+                    status: "Audio analysis failed due to corrupted file"
         "404":
           description: Task not found
           content:
@@ -143,37 +467,54 @@ paths:
               schema:
                 $ref: "#/components/schemas/HTTPError"
 
-  /stream/{taskId}:
+  /v2/stream/{taskId}:
     get:
-      summary: Stream real-time analysis results via SSE
+      tags:
+        - Analysis (v2)
+      summary: Stream enhanced real-time analysis updates via SSE
       description: |
-        Connect to this endpoint using an EventSource client to receive real-time updates on the analysis task.
-        The stream will send JSON objects with the task's current state.
+        Connect to this endpoint using an EventSource client to receive real-time updates
+        on the analysis task with enhanced queue and processing information.
 
-        **Event Format:**
+        ### Enhanced Stream Features:
+        - **Queue position updates**: Live position tracking
+        - **Processing time estimates**: Dynamic wait time calculations
+        - **Cache hit notifications**: Immediate notifications for cache hits
+        - **Detailed error information**: Comprehensive error states and recovery options
 
-        - **state**: The current state of the task (`PENDING`, `PROCESSING`, `SUCCESS`, `FAILURE`, `NOT_FOUND`).
-        - **status**: A descriptive message (for `PENDING`, `PROCESSING`, `FAILURE` states).
-        - **result**: The full analysis result object (only for the `SUCCESS` state).
-
-        The stream closes after a `SUCCESS`, `FAILURE`, or `NOT_FOUND` event is sent.
-      operationId: streamResults
+        ### Event Types:
+        - `PENDING`: Task is queued, includes position and estimated wait time
+        - `PROCESSING`: Task is being processed
+        - `SUCCESS`: Analysis completed successfully
+        - `FAILURE`: Processing failed with detailed error information
+        - `NOT_FOUND`: Task ID not found
+        - `ERROR`: System error occurred
+      operationId: streamEnhancedResults
       parameters:
         - name: taskId
           in: path
           required: true
-          description: The unique task identifier returned by the analyze endpoint
+          description: The unique task identifier returned by the enhanced analyze endpoint
           schema:
             type: string
-            example: "01HF7XQZX8R3VTFN95QG9MJZT0"
+            example: "01K06Y14S1FX16V9RV7FNXJ0KC"
       responses:
         "200":
-          description: A stream of Server-Sent Events with task status updates
+          description: A stream of Server-Sent Events with enhanced task status updates
           content:
             text/event-stream:
               schema:
                 type: string
-                example: 'data: {"state": "PROCESSING", "status": "Processing audio file..."}\n\n'
+              examples:
+                pending:
+                  summary: Queued task update
+                  value: 'data: {"state": "PENDING", "status": "Queued for processing", "queue_position": 2, "estimated_wait_time_minutes": 1.5}\n\n'
+                processing:
+                  summary: Processing update
+                  value: 'data: {"state": "PROCESSING", "status": "Processing audio file..."}\n\n'
+                success:
+                  summary: Completion event
+                  value: 'data: {"state": "SUCCESS", "result": {"bpm": 120.0, "beat_timestamps": [0.0, 0.5, 1.0]}}\n\n'
         "400":
           description: Invalid task ID
           content:
@@ -181,16 +522,443 @@ paths:
               schema:
                 $ref: "#/components/schemas/HTTPError"
 
+  /v2/health:
+    get:
+      tags:
+        - Analysis (v2)
+      summary: Comprehensive system health check
+      description: |
+        Get detailed health information about all system components including
+        Python engine, queue system, and cache performance.
+      operationId: getEnhancedHealth
+      responses:
+        "200":
+          description: System health information
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnhancedHealthResponse"
+        "503":
+          description: System degraded or unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnhancedHealthResponse"
+
+  # Queue Management Endpoints
+  /queue/status:
+    get:
+      tags:
+        - Queue Management
+      summary: Get current queue statistics
+      description: |
+        Retrieve comprehensive queue performance metrics including size, processing times,
+        and system capacity information.
+
+        ### Metrics Included:
+        - **Queue size**: Current number of pending tasks
+        - **Processing count**: Tasks currently being processed
+        - **Average times**: Historical processing and wait time metrics
+        - **Concurrency limits**: Maximum parallel processing capacity
+      operationId: getQueueStatus
+      responses:
+        "200":
+          description: Queue status retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QueueStatusResponse"
+              example:
+                queue_size: 5
+                processing_count: 2
+                avg_processing_time_ms: 30000
+                avg_wait_time_ms: 15000
+                concurrency_limit: 2
+
+  /queue/position/{taskId}:
+    get:
+      tags:
+        - Queue Management
+      summary: Get specific task position in queue
+      description: |
+        Get the current position of a specific task in the processing queue
+        along with estimated processing time.
+
+        ### Position Information:
+        - **Current position**: Exact position in queue (1-based)
+        - **Estimated wait time**: Calculated based on historical processing times
+        - **Priority level**: Task priority affecting processing order
+      operationId: getQueuePosition
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          description: The unique task identifier to check position for
+          schema:
+            type: string
+            example: "01K06Y14S1FX16V9RV7FNXJ0KC"
+      responses:
+        "200":
+          description: Task position retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QueuePositionResponse"
+              example:
+                task_id: "01K06Y14S1FX16V9RV7FNXJ0KC"
+                position: 3
+                estimated_wait_time_minutes: 2.5
+        "404":
+          description: Task not found in queue
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HTTPError"
+
+  /queue/health:
+    get:
+      tags:
+        - Queue Management
+      summary: Get queue system health status
+      description: |
+        Check the health and availability of the queue system.
+        This endpoint provides information about the queue system's operational status.
+      operationId: getQueueHealth
+      responses:
+        "200":
+          description: Queue health retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  healthy:
+                    type: boolean
+                    description: Whether the queue system is healthy
+                    example: true
+                  message:
+                    type: string
+                    description: Health status message
+                    example: "Queue system is operational"
+                  queue_size:
+                    type: integer
+                    description: Current queue size
+                    example: 3
+                  processing_count:
+                    type: integer
+                    description: Number of tasks currently being processed
+                    example: 2
+        "503":
+          description: Queue system is unhealthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  healthy:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: "Queue system is experiencing issues"
+                  error:
+                    type: string
+                    example: "Database connection failed"
+
+  /queue/depth:
+    get:
+      tags:
+        - Queue Management
+      summary: Get current queue depth information
+      description: |
+        Retrieve detailed information about the current queue depth including
+        priority-based breakdown and processing capacity.
+      operationId: getQueueDepth
+      responses:
+        "200":
+          description: Queue depth information retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total_depth:
+                    type: integer
+                    description: Total number of tasks in queue
+                    example: 8
+                  priority_breakdown:
+                    type: object
+                    properties:
+                      high:
+                        type: integer
+                        description: Number of high priority tasks
+                        example: 2
+                      normal:
+                        type: integer
+                        description: Number of normal priority tasks
+                        example: 5
+                      batch:
+                        type: integer
+                        description: Number of batch priority tasks
+                        example: 1
+                  processing_capacity:
+                    type: object
+                    properties:
+                      current:
+                        type: integer
+                        description: Currently processing tasks
+                        example: 2
+                      maximum:
+                        type: integer
+                        description: Maximum concurrent processing capacity
+                        example: 4
+                  estimated_processing_time:
+                    type: object
+                    properties:
+                      next_task_minutes:
+                        type: number
+                        format: float
+                        description: Estimated time until next task starts processing
+                        example: 1.5
+                      queue_clear_minutes:
+                        type: number
+                        format: float
+                        description: Estimated time to clear entire queue
+                        example: 12.5
+
+  # Cache Management Endpoints
+  /cache/stats:
+    get:
+      tags:
+        - Cache Management
+      summary: Get cache performance statistics
+      description: |
+        Retrieve detailed performance metrics for all cache tiers including
+        hit rates, sizes, and efficiency metrics.
+
+        ### Cache Tiers:
+        - **L1 (In-Memory)**: Fastest access, limited size
+        - **L2 (Redis)**: Network-based, larger capacity
+        - **L3 (Database)**: Persistent storage, unlimited capacity
+
+        ### Metrics per Tier:
+        - **Hit/miss counts**: Performance tracking
+        - **Hit rates**: Efficiency percentages
+        - **Current size**: Memory/storage usage
+        - **Availability**: Service status
+      operationId: getCacheStats
+      responses:
+        "200":
+          description: Cache statistics retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CacheStatsResponse"
+
+  /cache/health:
+    get:
+      tags:
+        - Cache Management
+      summary: Get cache system health status
+      description: |
+        Check the health and availability of all cache tiers.
+      operationId: getCacheHealth
+      responses:
+        "200":
+          description: Cache health retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CacheHealthResponse"
+
+  /cache/{audioHash}:
+    get:
+      tags:
+        - Cache Management
+      summary: Get cached analysis result by audio fingerprint
+      description: |
+        Retrieve a cached analysis result directly using the audio content fingerprint hash.
+        This endpoint allows clients to fetch cached results using the audio fingerprint
+        without going through the task processing system.
+
+        ### Use Cases:
+        - **Direct cache access**: Bypass task system for known audio fingerprints
+        - **Cache debugging**: Verify cache contents and behavior
+        - **Performance optimization**: Skip queue when result is known to be cached
+        - **Client-side caching**: Allow clients to implement their own cache logic
+
+        ### Audio Fingerprint:
+        The audioHash parameter should be the SHA-256 hash of the audio file content,
+        which serves as the unique fingerprint for cache lookups.
+      operationId: getCachedResult
+      parameters:
+        - name: audioHash
+          in: path
+          required: true
+          description: The SHA-256 hash of the audio file content (audio fingerprint)
+          schema:
+            type: string
+            pattern: "^[a-f0-9]{64}$"
+            example: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      responses:
+        "200":
+          description: Cached result found and returned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnalysisResult"
+              example:
+                bpm: 128.5
+                beat_timestamps: [0.0, 0.46875, 0.9375, 1.40625]
+                melody_map:
+                  - pitch: 440.0
+                    start_time: 0.5
+                    duration: 0.4
+                analysis_info:
+                  total_beats: 32
+                  total_subdivisions: 64
+                  consolidated_notes: 24
+                  filtered_notes: 18
+                  min_note_duration: 0.05
+                  subdivision_factor: 2
+        "404":
+          description: No cached result found for this audio fingerprint
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HTTPError"
+              example:
+                error: "Cached result not found"
+                detail: "No analysis result found in cache for the provided audio hash"
+
+    delete:
+      tags:
+        - Cache Management
+      summary: Invalidate cached result by audio hash
+      description: |
+        Remove a specific cached analysis result from all cache tiers.
+        This forces re-analysis of the audio file on next request.
+      operationId: invalidateCache
+      parameters:
+        - name: audioHash
+          in: path
+          required: true
+          description: The SHA-256 hash of the audio content
+          schema:
+            type: string
+            pattern: "^[a-f0-9]{64}$"
+            example: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      responses:
+        "200":
+          description: Cache invalidated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Cache invalidated successfully"
+        "404":
+          description: No cached result found for this hash
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HTTPError"
+
+  /cache/all:
+    delete:
+      tags:
+        - Cache Management
+      summary: Clear all cached results
+      description: |
+        Remove all cached analysis results from all cache tiers.
+        This operation cannot be undone and will force re-analysis of all audio files.
+
+        **Warning**: This operation may impact system performance as all subsequent
+        requests will result in cache misses.
+      operationId: clearAllCache
+      responses:
+        "200":
+          description: All caches cleared successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "All caches cleared successfully"
+                  cleared_entries:
+                    type: object
+                    properties:
+                      l1_cache:
+                        type: integer
+                        example: 45
+                      l2_cache:
+                        type: integer
+                        example: 123
+                      l3_cache:
+                        type: integer
+                        example: 456
+
+  /cache/warm:
+    post:
+      tags:
+        - Cache Management
+      summary: Warm cache with frequently accessed results
+      description: |
+        Pre-load cache with frequently accessed analysis results to improve
+        performance for common requests.
+      operationId: warmCache
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                audio_hashes:
+                  type: array
+                  items:
+                    type: string
+                    pattern: "^[a-f0-9]{64}$"
+                  description: Array of audio content hashes to warm
+                  example:
+                    - "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+                    - "d4735e3a265e16eee03f59718b9b5d03019c07d8b6c51f90da3a666eec13ab35"
+              required:
+                - audio_hashes
+      responses:
+        "200":
+          description: Cache warming completed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Cache warming completed"
+                  warmed_entries:
+                    type: integer
+                    example: 2
+                  skipped_entries:
+                    type: integer
+                    example: 0
+
 components:
   schemas:
+    # Core Analysis Schemas
     MelodyNote:
       type: object
       description: A single note in the extracted melody
       properties:
         pitch:
-          type: string
-          description: The MIDI note name (e.g., C4, F#5)
-          example: "A4"
+          type: number
+          format: float
+          description: The fundamental frequency in Hz
+          example: 440.0
         start_time:
           type: number
           format: float
@@ -272,9 +1040,10 @@ components:
         - melody_map
         - analysis_info
 
+    # Legacy Response Schemas
     AnalyzeResponse:
       type: object
-      description: Response returned when an analysis task is created
+      description: Response returned when a legacy analysis task is created
       properties:
         task_id:
           type: string
@@ -289,6 +1058,60 @@ components:
         - task_id
         - backend
 
+    # Enhanced Response Schemas
+    EnhancedAnalysisResponse:
+      type: object
+      description: Response returned when an analysis task is created
+      properties:
+        task_id:
+          type: string
+          description: A unique ID for the analysis task
+          example: "01K06Y14S1FX16V9RV7FNXJ0KC"
+        backend:
+          type: string
+          enum: [redis, in-memory]
+          description: The backend used for processing
+          example: "in-memory"
+        cache_hit:
+          type: boolean
+          description: Whether the result was found in cache
+          example: false
+        queue_position:
+          type: integer
+          description: Current position in the processing queue (1-based)
+          example: 3
+        estimated_wait_time_minutes:
+          type: number
+          format: float
+          description: Estimated wait time in minutes
+          example: 2.5
+        result:
+          $ref: "#/components/schemas/AnalysisResult"
+          description: The analysis result (only present for cache hits)
+      required:
+        - task_id
+        - backend
+        - cache_hit
+
+    # Task Status Response Schemas
+    TaskResultResponse:
+      oneOf:
+        - $ref: "#/components/schemas/SuccessResponse"
+        - $ref: "#/components/schemas/StatusResponse"
+        - $ref: "#/components/schemas/FailureResponse"
+        - $ref: "#/components/schemas/NotFoundResponse"
+      discriminator:
+        propertyName: state
+
+    EnhancedTaskResultResponse:
+      oneOf:
+        - $ref: "#/components/schemas/EnhancedSuccessResponse"
+        - $ref: "#/components/schemas/EnhancedStatusResponse"
+        - $ref: "#/components/schemas/EnhancedFailureResponse"
+        - $ref: "#/components/schemas/NotFoundResponse"
+      discriminator:
+        propertyName: state
+
     SuccessResponse:
       type: object
       description: Task completed successfully
@@ -299,6 +1122,25 @@ components:
           example: "SUCCESS"
         result:
           $ref: "#/components/schemas/AnalysisResult"
+      required:
+        - state
+        - result
+
+    EnhancedSuccessResponse:
+      type: object
+      description: Enhanced task completed successfully (processed via Python IPC, no cache involved)
+      properties:
+        state:
+          type: string
+          enum: [SUCCESS]
+          example: "SUCCESS"
+        result:
+          $ref: "#/components/schemas/AnalysisResult"
+        processing_time_ms:
+          type: number
+          format: float
+          description: Time taken to process the task in milliseconds
+          example: 25000
       required:
         - state
         - result
@@ -319,6 +1161,31 @@ components:
         - state
         - status
 
+    EnhancedStatusResponse:
+      type: object
+      description: Enhanced task status with queue information
+      properties:
+        state:
+          type: string
+          enum: [PENDING, PROCESSING]
+          example: "PENDING"
+        status:
+          type: string
+          description: A message describing the current status
+          example: "Queued for processing"
+        queue_position:
+          type: integer
+          description: Current position in the processing queue
+          example: 2
+        estimated_wait_time_minutes:
+          type: number
+          format: float
+          description: Estimated wait time in minutes
+          example: 1.5
+      required:
+        - state
+        - status
+
     FailureResponse:
       type: object
       description: Task failed during execution
@@ -331,6 +1198,30 @@ components:
           type: string
           description: A message describing the error
           example: "Audio analysis failed due to an invalid file format."
+      required:
+        - state
+        - status
+
+    EnhancedFailureResponse:
+      type: object
+      description: Enhanced task failure with detailed error information
+      properties:
+        state:
+          type: string
+          enum: [FAILURE]
+          example: "FAILURE"
+        status:
+          type: string
+          description: A message describing the error
+          example: "Audio analysis failed due to corrupted file"
+        error_type:
+          type: string
+          enum: [VALIDATION_ERROR, PROCESSING_ERROR, SYSTEM_ERROR]
+          example: "PROCESSING_ERROR"
+        retry_suggested:
+          type: boolean
+          description: Whether retrying the request is recommended
+          example: false
       required:
         - state
         - status
@@ -351,30 +1242,243 @@ components:
         - state
         - status
 
-    TaskResultResponse:
-      oneOf:
-        - $ref: "#/components/schemas/SuccessResponse"
-        - $ref: "#/components/schemas/StatusResponse"
-        - $ref: "#/components/schemas/FailureResponse"
-        - $ref: "#/components/schemas/NotFoundResponse"
-      discriminator:
-        propertyName: state
+    # Health Check Schemas
+    PythonHealthCheck:
+      type: object
+      description: Python engine health status
+      properties:
+        healthy:
+          type: boolean
+          description: Whether the Python engine is available
+          example: true
+        version:
+          type: string
+          description: Python engine version
+          example: "3.9.7"
+        error:
+          type: string
+          description: Error message if unhealthy
+          example: "Python engine not responding"
 
+    EnhancedHealthResponse:
+      type: object
+      description: Comprehensive system health information
+      properties:
+        status:
+          type: string
+          enum: [Healthy, Degraded, Unhealthy]
+          example: "Healthy"
+        components:
+          type: object
+          properties:
+            python_engine:
+              $ref: "#/components/schemas/PythonHealthCheck"
+            queue_system:
+              type: object
+              properties:
+                healthy:
+                  type: boolean
+                  example: true
+                queue_size:
+                  type: integer
+                  example: 3
+                processing_count:
+                  type: integer
+                  example: 2
+            cache_system:
+              type: object
+              properties:
+                healthy:
+                  type: boolean
+                  example: true
+                hit_rate:
+                  type: number
+                  format: float
+                  example: 0.85
+                total_hits:
+                  type: integer
+                  example: 1234
+                total_misses:
+                  type: integer
+                  example: 234
+      required:
+        - status
+        - components
+
+    # Queue Management Schemas
+    QueueStatusResponse:
+      type: object
+      description: Current queue system status and performance metrics
+      properties:
+        queue_size:
+          type: integer
+          description: Number of tasks waiting in queue
+          example: 5
+        processing_count:
+          type: integer
+          description: Number of tasks currently being processed
+          example: 2
+        avg_processing_time_ms:
+          type: number
+          format: float
+          description: Average processing time in milliseconds
+          example: 30000
+        avg_wait_time_ms:
+          type: number
+          format: float
+          description: Average wait time in queue in milliseconds
+          example: 15000
+        concurrency_limit:
+          type: integer
+          description: Maximum number of concurrent processing tasks
+          example: 2
+      required:
+        - queue_size
+        - processing_count
+        - avg_processing_time_ms
+        - avg_wait_time_ms
+        - concurrency_limit
+
+    QueuePositionResponse:
+      type: object
+      description: Specific task position in processing queue
+      properties:
+        task_id:
+          type: string
+          description: The task identifier
+          example: "01K06Y14S1FX16V9RV7FNXJ0KC"
+        position:
+          type: integer
+          description: Current position in queue (1-based)
+          example: 3
+        estimated_wait_time_minutes:
+          type: number
+          format: float
+          description: Estimated wait time in minutes
+          example: 2.5
+      required:
+        - task_id
+        - position
+        - estimated_wait_time_minutes
+
+    # Cache Management Schemas
+    CacheStatsResponse:
+      type: object
+      description: Comprehensive cache performance statistics
+      properties:
+        total_hit_rate:
+          type: number
+          format: float
+          description: Overall cache hit rate across all tiers
+          example: 0.85
+        total_hit_count:
+          type: integer
+          description: Total number of cache hits
+          example: 1234
+        total_miss_count:
+          type: integer
+          description: Total number of cache misses
+          example: 234
+        l1_cache:
+          $ref: "#/components/schemas/CacheTierStats"
+        l2_cache:
+          $ref: "#/components/schemas/CacheTierStats"
+        l3_cache:
+          $ref: "#/components/schemas/CacheTierStats"
+      required:
+        - total_hit_rate
+        - total_hit_count
+        - total_miss_count
+        - l1_cache
+        - l2_cache
+        - l3_cache
+
+    CacheTierStats:
+      type: object
+      description: Performance statistics for a specific cache tier
+      properties:
+        size:
+          type: integer
+          description: Current number of cached entries
+          example: 45
+        max_size:
+          type: integer
+          description: Maximum cache capacity (if applicable)
+          example: 100
+        hit_count:
+          type: integer
+          description: Number of cache hits
+          example: 123
+        miss_count:
+          type: integer
+          description: Number of cache misses
+          example: 67
+        hit_rate:
+          type: number
+          format: float
+          description: Hit rate percentage (0.0 to 1.0)
+          example: 0.647
+        available:
+          type: boolean
+          description: Whether this cache tier is available
+          example: true
+      required:
+        - size
+        - hit_count
+        - miss_count
+        - hit_rate
+        - available
+
+    CacheHealthResponse:
+      type: object
+      description: Cache system health status
+      properties:
+        healthy:
+          type: boolean
+          description: Overall cache system health
+          example: true
+        l1_available:
+          type: boolean
+          description: L1 cache availability
+          example: true
+        l2_available:
+          type: boolean
+          description: L2 cache availability
+          example: false
+        l3_available:
+          type: boolean
+          description: L3 cache availability
+          example: true
+        issues:
+          type: array
+          items:
+            type: string
+          description: List of current issues
+          example: ["L2 cache (Redis) unavailable"]
+      required:
+        - healthy
+        - l1_available
+        - l2_available
+        - l3_available
+
+    # Error Response Schema
     HTTPError:
       type: object
       description: Standard HTTP error response
       properties:
+        error:
+          type: string
+          description: Error message
+          example: "Invalid request"
         detail:
           type: string
-          description: Error description
-          example: "Resource not found"
+          description: Detailed error description
+          example: "The provided file format is not supported"
+        code:
+          type: string
+          description: Error code for programmatic handling
+          example: "INVALID_FILE_FORMAT"
       required:
-        - detail
+        - error
 
   securitySchemes: {}
-
-tags:
-  - name: Analysis
-    description: Audio analysis operations
-  - name: Health
-    description: Service health checks

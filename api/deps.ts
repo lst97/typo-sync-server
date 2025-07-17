@@ -1,15 +1,17 @@
 // External dependencies
-export { Application, Context, Router, Status } from "oak";
-export { oakCors } from "cors";
-export { z } from "zod";
-export { connect as connectRedis, type Redis } from "redis";
+export { Application, Context, Router, Status } from "jsr:@oak/oak";
+export { oakCors } from "jsr:@tajpouria/cors";
+export { z } from "npm:zod";
+export { createClient as connectRedis } from "npm:redis";
+export type { RedisClientType as Redis } from "npm:redis";
+export { PGlite } from "npm:@electric-sql/pglite";
 
 // Standard library
-export { exists, ensureDir } from "@std/fs";
-export { join, extname } from "@std/path";
-export { ulid } from "@std/ulid";
-export { assertEquals, assertExists } from "@std/assert";
-export { delay } from "@std/async/delay";
+export { exists, ensureDir } from "jsr:@std/fs";
+export { join, extname } from "jsr:@std/path";
+export { ulid } from "jsr:@std/ulid";
+export { assertEquals, assertExists, assert } from "jsr:@std/assert";
+export { delay } from "jsr:@std/async/delay";
 
 // Types
-export type { Middleware } from "oak";
+export type { Middleware } from "jsr:@oak/oak";
