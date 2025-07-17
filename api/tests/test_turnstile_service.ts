@@ -2,8 +2,19 @@ import { assertEquals } from "../deps.ts";
 import { TurnstileService } from "../services/turnstile-service.ts";
 
 Deno.test("TurnstileService - initialization without secret key", () => {
-	const service = new TurnstileService();
-	assertEquals(service.isEnabled(), false);
+	// Clear environment variable to ensure clean test
+	const originalKey = Deno.env.get("TURNSTILE_SECRET_KEY");
+	Deno.env.delete("TURNSTILE_SECRET_KEY");
+	
+	try {
+		const service = new TurnstileService();
+		assertEquals(service.isEnabled(), false);
+	} finally {
+		// Restore original value
+		if (originalKey) {
+			Deno.env.set("TURNSTILE_SECRET_KEY", originalKey);
+		}
+	}
 });
 
 Deno.test("TurnstileService - initialization with secret key", () => {
@@ -14,9 +25,20 @@ Deno.test("TurnstileService - initialization with secret key", () => {
 Deno.test(
 	"TurnstileService - validation without secret key returns success",
 	async () => {
-		const service = new TurnstileService();
-		const result = await service.validateToken("test-token");
-		assertEquals(result.success, true);
+		// Clear environment variable to ensure clean test
+		const originalKey = Deno.env.get("TURNSTILE_SECRET_KEY");
+		Deno.env.delete("TURNSTILE_SECRET_KEY");
+		
+		try {
+			const service = new TurnstileService();
+			const result = await service.validateToken("test-token");
+			assertEquals(result.success, true);
+		} finally {
+			// Restore original value
+			if (originalKey) {
+				Deno.env.set("TURNSTILE_SECRET_KEY", originalKey);
+			}
+		}
 	}
 );
 

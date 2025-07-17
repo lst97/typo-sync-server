@@ -164,7 +164,7 @@ export class AnalysisController {
 			ctx.response.body = result;
 		} catch (error) {
 			logger.error(
-				"Enhanced analysis submission failed",
+				"Analysis submission failed",
 				error instanceof Error ? error : new Error(String(error))
 			);
 			ctx.response.status = 500;
@@ -194,7 +194,7 @@ export class AnalysisController {
 			ctx.response.body = result;
 		} catch (error) {
 			logger.error(
-				"Failed to get enhanced analysis results",
+				"Failed to get analysis results",
 				error instanceof Error ? error : new Error(String(error))
 			);
 			ctx.response.status = 500;

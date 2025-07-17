@@ -45,7 +45,8 @@ Deno.test("QueueService - enqueue audio processing", async () => {
 
 Deno.test("QueueService - priority handling", async () => {
   const db = await createTestDatabase();
-  const queueService = new QueueService(db);
+  // Set maxConcurrency to 3 to allow all 3 items to be dequeued
+  const queueService = new QueueService(db, { maxConcurrency: 3 });
   
   // Create test audio fingerprints
   const fingerprints = await Promise.all([

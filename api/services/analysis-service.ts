@@ -56,7 +56,7 @@ export class AnalysisService {
 		filename: string,
 		priority: "high" | "normal" | "batch" = "normal"
 	): Promise<AnalysisResultResponse> {
-		logger.info("Submitting enhanced analysis request", { filename, priority });
+		logger.info("Submitting analysis request", { filename, priority });
 
 		try {
 			// Generate audio hashes
@@ -129,7 +129,7 @@ export class AnalysisService {
 			// Start background processing
 			this.processAnalysisAsync(taskId, filePath, hashes.contentHash);
 
-			logger.info("Enhanced analysis task created", {
+			logger.info("Analysis task created", {
 				taskId,
 				filename,
 				priority,
@@ -146,7 +146,7 @@ export class AnalysisService {
 			};
 		} catch (error) {
 			logger.error(
-				"Enhanced analysis submission failed",
+				"Analysis submission failed",
 				error instanceof Error ? error : new Error(String(error))
 			);
 			throw new Error("Failed to submit analysis request");
@@ -174,14 +174,14 @@ export class AnalysisService {
 				// Mark processing as completed
 				await this.queueService.markProcessingCompleted(taskId);
 
-				logger.info("Enhanced analysis completed successfully", { taskId });
+				logger.info("Analysis completed successfully", { taskId });
 			} else {
 				// Analysis failed
 				await this.queueService.markProcessingFailed(
 					taskId,
 					result.error || "Analysis failed"
 				);
-				logger.error("Enhanced analysis failed", undefined, {
+				logger.error("Analysis failed", undefined, {
 					taskId,
 					error: result.error,
 				});
@@ -192,7 +192,7 @@ export class AnalysisService {
 				error instanceof Error ? error.message : String(error);
 			await this.queueService.markProcessingFailed(taskId, errorMessage);
 			logger.error(
-				"Unexpected error during enhanced analysis",
+				"Unexpected error during analysis",
 				error instanceof Error ? error : new Error(String(error)),
 				{ taskId }
 			);

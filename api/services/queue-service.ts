@@ -29,9 +29,15 @@ export class QueueService {
 	constructor(db: DatabaseService, options: QueueServiceOptions = {}) {
 		this.db = db;
 		this.options = {
-			maxConcurrency: options.maxConcurrency ?? 3,
+			maxConcurrency: options.maxConcurrency ?? 
+				(Deno.env.get("QUEUE_CONCURRENCY_LIMIT")
+					? parseInt(Deno.env.get("QUEUE_CONCURRENCY_LIMIT")!)
+					: 2),
 			defaultPriority: options.defaultPriority ?? 2,
-			processingTimeoutMs: options.processingTimeoutMs ?? 300000, // 5 minutes
+			processingTimeoutMs: options.processingTimeoutMs ?? 
+				(Deno.env.get("QUEUE_PROCESSING_TIMEOUT")
+					? parseInt(Deno.env.get("QUEUE_PROCESSING_TIMEOUT")!)
+					: 300000), // 5 minutes
 		};
 	}
 

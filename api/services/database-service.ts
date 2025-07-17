@@ -49,19 +49,6 @@ interface QueueItemRow {
 	error_message: string | null;
 }
 
-interface CountRow {
-	count: string;
-}
-
-interface QueueStatsRow {
-	avg_time: string;
-	avg_wait: string;
-}
-
-interface QueuePositionRow {
-	position: string;
-}
-
 export class DatabaseService {
 	private db: PGlite | null = null;
 	public audioRepository: AudioRepository;
@@ -69,7 +56,9 @@ export class DatabaseService {
 	public queueRepository: QueueRepository;
 	private dataDir: string;
 
-	constructor(dataDir: string = "./data/typosync.db") {
+	constructor(
+		dataDir: string = Deno.env.get("DATABASE_URL") ?? "./data/typosync.db"
+	) {
 		this.dataDir = dataDir;
 		this.audioRepository = new AudioRepositoryImpl(() => this.getDb());
 		this.cacheRepository = new CacheRepositoryImpl(() => this.getDb());

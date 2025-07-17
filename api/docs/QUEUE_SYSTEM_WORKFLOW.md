@@ -30,7 +30,7 @@ This document describes the comprehensive queue system implemented for TypoSync'
 
 ## Workflow Overview
 
-### 1. Enhanced Analysis Flow
+### 1. Analysis Flow
 
 ```mermaid
 graph TD
@@ -81,7 +81,7 @@ sequenceDiagram
 
 ## API Endpoints
 
-### Enhanced Analysis Endpoints (v2)
+### Analysis Endpoints (v2)
 
 #### POST /v2/analyze
 

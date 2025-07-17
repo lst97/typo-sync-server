@@ -252,7 +252,7 @@ paths:
     post:
       tags:
         - Analysis (v2)
-      summary: Submit audio for enhanced analysis with caching and queue management
+      summary: Submit audio for analysis with caching and queue management
       description: |
         **Enhanced endpoint** with intelligent caching and priority queue management.
 
@@ -393,7 +393,7 @@ paths:
     get:
       tags:
         - Analysis (v2)
-      summary: Get enhanced analysis results for processing tasks
+      summary: Get analysis results for processing tasks
       description: |
         Retrieve the current status or final result of an analysis task with enhanced metadata.
 
@@ -1061,7 +1061,7 @@ components:
     # Enhanced Response Schemas
     EnhancedAnalysisResponse:
       type: object
-      description: Response returned when an enhanced analysis task is created
+      description: Response returned when an analysis task is created
       properties:
         task_id:
           type: string

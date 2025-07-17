@@ -75,11 +75,23 @@ export class CacheService {
 	constructor(db: DatabaseService, options: CacheServiceOptions = {}) {
 		this.db = db;
 		this.options = {
-			l1MaxSize: options.l1MaxSize ?? 1000,
-			l1TtlMs: options.l1TtlMs ?? 15 * 60 * 1000, // 15 minutes
-			l2TtlMs: options.l2TtlMs ?? 60 * 60 * 1000, // 1 hour
-			l3TtlMs: options.l3TtlMs ?? 24 * 60 * 60 * 1000, // 24 hours
-			redisUrl: options.redisUrl ?? config.config.redis_url ?? "",
+			l1MaxSize: options.l1MaxSize ?? 
+				(Deno.env.get("CACHE_L1_MAX_SIZE")
+					? parseInt(Deno.env.get("CACHE_L1_MAX_SIZE")!)
+					: 1000),
+			l1TtlMs: options.l1TtlMs ?? 
+				(Deno.env.get("CACHE_L1_TTL_MS")
+					? parseInt(Deno.env.get("CACHE_L1_TTL_MS")!)
+					: 15 * 60 * 1000),
+			l2TtlMs: options.l2TtlMs ?? 
+				(Deno.env.get("CACHE_L2_TTL_MS")
+					? parseInt(Deno.env.get("CACHE_L2_TTL_MS")!)
+					: 60 * 60 * 1000),
+			l3TtlMs: options.l3TtlMs ?? 
+				(Deno.env.get("CACHE_L3_TTL_MS")
+					? parseInt(Deno.env.get("CACHE_L3_TTL_MS")!)
+					: 24 * 60 * 60 * 1000),
+			redisUrl: options.redisUrl ?? Deno.env.get("REDIS_URL") ?? "",
 		};
 
 		this.initializeRedis();
@@ -245,6 +257,15 @@ export class CacheService {
 	}
 
 	private setL1(audioHash: string, result: AnalysisResult): void {
+		// If item already exists, just update it
+		if (this.l1Cache.has(audioHash)) {
+			const existingEntry = this.l1Cache.get(audioHash)!;
+			existingEntry.data = result;
+			existingEntry.lastAccessed = Date.now();
+			existingEntry.accessCount++;
+			return;
+		}
+		
 		// Check if cache is full and evict LRU item
 		if (this.l1Cache.size >= this.options.l1MaxSize) {
 			this.evictLRU();
@@ -630,7 +651,7 @@ export class CacheService {
 		if (this.l1Cache.size === 0) return;
 
 		let lruKey = "";
-		let lruTime = Date.now();
+		let lruTime = Number.MAX_SAFE_INTEGER;
 
 		for (const [key, entry] of this.l1Cache.entries()) {
 			if (entry.lastAccessed < lruTime) {
